@@ -1,0 +1,93 @@
+%% Proceso de apartado AUTOMATIZADO con n8n (nivel Esencial + Medio)
+%% Un color por flujo: ver la leyenda abajo a la derecha
+flowchart TD
+    subgraph APP[App de la tienda]
+        A1[Alta de apartado] --> E1((apartado.creado))
+        A2[Abono registrado] --> E2((abono.registrado))
+        A3[Venta registrada] --> E3((venta.registrada))
+        A4[POST vencer] --> E4((apartado.vencido))
+    end
+
+    E1 & E2 & E3 & E4 --> W{{Webhook único /webhook/tienda<br/>Switch por evento}}
+
+    W -- apartado.creado --> F1[01 Confirmación de apartado]
+    W -- abono.registrado --> F2[02 Recibo de abono]
+    W -- venta.registrada --> F4[04 Venta grande<br/>importe sobre el umbral]
+
+    F1 --> N[[SUB Enviar notificación]]
+    F2 --> N
+    F4 --> N
+    N --> CL([Cliente])
+    N --> MA([Marisa])
+
+    subgraph BANCO[03 Pagos a distancia]
+        C1[Correo del banco] --> C2{¿Es un pago?}
+        C2 -- Publicidad --> C3[Se ignora]
+        C2 -- Pago --> C4[IA extrae ordenante, importe y concepto]
+        C4 --> B1[[SUB Buscar apartado]]
+        B1 --> C5{¿Un único apartado claro<br/>y el importe es válido?}
+        C5 -- Sí --> C6[Registrar abono por API]
+        C6 --> A2
+        C5 -- No --> C7[No se registra nada<br/>y se pregunta a Marisa]
+        C7 --> MA
+    end
+
+    subgraph PROG[Flujos programados]
+        P1([Cada mañana]) --> P2[06 Recordatorios 7 y 1 días<br/>y vencimientos]
+        P2 --> N
+        P2 --> A4
+        P3([Cada noche]) --> P4[05 Cierre diario]
+        P4 --> N
+        P5([Día 1 del mes]) --> P6[07 Informe mensual]
+        P6 --> N
+    end
+
+    E4 --> V[Vale VALE-xxxxx<br/>aviso al cliente y lista a Marisa]
+    V --> N
+
+    ERR[08 Error Workflow] -. cualquier fallo .-> MA
+
+    subgraph LEYENDA[Leyenda]
+        direction LR
+        subgraph COL1[" "]
+            direction TB
+            L1[01 Confirmación]:::f01
+            L2[02 Recibo de abono]:::f02
+            L3[03 Pagos a distancia]:::f03
+            L4[04 Venta grande]:::f04
+            L5[05 Cierre diario]:::f05
+            L1 ~~~ L2 ~~~ L3 ~~~ L4 ~~~ L5
+        end
+        subgraph COL2[" "]
+            direction TB
+            L6[06 Recordatorios y vencimientos]:::f06
+            L7[07 Informe mensual]:::f07
+            L8[08 Error Workflow]:::f08
+            L9[SUB-workflow]:::sub
+            L10[App y webhook]:::app
+            L6 ~~~ L7 ~~~ L8 ~~~ L9 ~~~ L10
+        end
+        COL1 ~~~ COL2
+    end
+
+    classDef f01 fill:#bfdbfe,stroke:#1d4ed8,color:#000
+    classDef f02 fill:#bbf7d0,stroke:#15803d,color:#000
+    classDef f03 fill:#fed7aa,stroke:#c2410c,color:#000
+    classDef f04 fill:#e9d5ff,stroke:#7e22ce,color:#000
+    classDef f05 fill:#99f6e4,stroke:#0f766e,color:#000
+    classDef f06 fill:#fef08a,stroke:#a16207,color:#000
+    classDef f07 fill:#fbcfe8,stroke:#be185d,color:#000
+    classDef f08 fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef sub fill:#e5e7eb,stroke:#374151,color:#000
+    classDef app fill:#f1f5f9,stroke:#64748b,color:#000
+
+    class F1 f01
+    class F2 f02
+    class C1,C2,C3,C4,C5,C6,C7 f03
+    class F4 f04
+    class P3,P4 f05
+    class P1,P2,E4,V f06
+    class P5,P6 f07
+    class ERR f08
+    class N,B1 sub
+    class A1,A2,A3,A4,E1,E2,E3,W app

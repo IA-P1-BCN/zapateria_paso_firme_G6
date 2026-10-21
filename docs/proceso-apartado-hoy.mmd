@@ -1,0 +1,24 @@
+%% Proceso de apartado HOY (borrador: validar con Marisa)
+flowchart TD
+    A([Cliente quiere apartar unos zapatos]) --> B[Dependienta apunta el apartado<br/>en el Excel y cobra el abono inicial]
+    B --> C{¿Cliente pide<br/>confirmación?}
+    C -- Sí --> D[Se avisa a mano<br/>llamada o WhatsApp]
+    C -- No --> E[Sin confirmación]
+    D --> F
+    E --> F[Cliente paga abonos]
+
+    F --> G{¿Cómo paga?}
+    G -- En tienda --> H[Dependienta apunta el abono en el Excel]
+    G -- Bizum / transferencia --> I[Marisa revisa los avisos del banco<br/>y busca de quién es el pago]
+    I --> J[Marisa apunta el abono en el Excel<br/>y avisa al cliente a mano]
+    H --> K
+    J --> K{¿Llega a 0 pendiente?}
+    K -- Sí --> L[Marisa avisa:<br/>puede recoger sus zapatos]
+    K -- No --> M[Sigue pendiente]
+
+    M --> N{¿Pasan los 90 días?}
+    N -- Alguien se da cuenta --> O[Marisa revisa el Excel,<br/>anula el apartado y decide el vale]
+    N -- Nadie lo mira --> P[(Zapatos bloqueados<br/>y cliente sin aviso)]
+
+    Q([Cada noche]) --> R[Marisa suma ventas y abonos<br/>con calculadora para cerrar caja]
+    S([Cada mes]) --> T[Marisa hace cuentas a mano<br/>del dinero cobrado y pendiente]
