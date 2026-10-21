@@ -19,6 +19,10 @@ services:
     environment:
       - TZ=Europe/Madrid
       - GENERIC_TIMEZONE=Europe/Madrid
+      # n8n 2.x bloquea $env en los nodos por defecto; los flujos leen aquí su configuración
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - EMAIL_TIENDA=${EMAIL_TIENDA:-}
+      - UMBRAL_VENTA_GRANDE=${UMBRAL_VENTA_GRANDE:-80}
     volumes:
       - n8n_data:/home/node/.n8n
 
