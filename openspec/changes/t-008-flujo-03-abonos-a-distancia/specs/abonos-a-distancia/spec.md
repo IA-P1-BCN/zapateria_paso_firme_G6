@@ -48,6 +48,14 @@ El flujo SHALL NOT registrar nada y SHALL preguntar a Marisa cuando haya varios 
 ### Requirement: Rechazos por regla de negocio
 El flujo SHALL NOT registrar y SHALL avisar a Marisa con el motivo cuando el importe supere lo pendiente o el apartado esté fuera de plazo.
 
+#### Scenario: Fuera de plazo
+- **WHEN** llega el correo 06 y el apartado está fuera de plazo
+- **THEN** no se registra el abono y Marisa recibe el motivo
+
+#### Scenario: Pago que liquida
+- **WHEN** llega el correo 03 y el importe es igual al pendiente
+- **THEN** se registra el abono y el apartado queda `liquidado`
+
 #### Scenario: Importe mayor que lo pendiente
 - **WHEN** el pago es de 25 € y `pendiente` es 10 €
 - **THEN** no se registra el abono

@@ -7,17 +7,17 @@
 6. **Errores de la app:** si `POST /abonos` devuelve 422, se avisa a Marisa con el motivo. `detail` puede ser texto o lista: se tratan los dos.
 7. **DECISIÓN ABIERTA:** la app solo acepta `efectivo`, `tarjeta` y `bizum`; no existe `transferencia`. Propuesta: registrar las transferencias como `bizum` (pago a distancia) y decirlo en el aviso; alternativa: pedir a Marisa. A decidir antes de construir.
 
-## Los 9 correos de `data/correos/` y qué regla prueba cada uno
-| Correo | Qué prueba | Resultado esperado* |
-|---|---|---|
-| 01 Bizum Carmen Ruiz García, `zuecos`, 10 € | nombre completo | registra si hay un único apartado activo |
-| 02 Bizum `JORGE M.`, `apartado 2 bota`, 20 € | nombre abreviado y número engañoso en el concepto | busca por `jorge`; el `2` no se usa como id sin comprobarlo |
-| 03 Transferencia Lucía Gómez Pérez, `Liquidar mocasines`, 12 € | otro formato de correo; concepto que puede no coincidir | registra solo si es único y el importe cabe |
-| 04 Bizum `LAURA O.`, `deportivas`, 15 € | apellido abreviado | un único candidato o dudoso |
-| 05 Bizum `ROMERO D`, sin concepto, 10 € | sin concepto | **dudoso**: no registra, pregunta |
-| 06 Bizum Paula Ramos León, `zapatillas running perdón por el retraso`, 20 € | ruido en el concepto | el texto extra no impide encontrar el apartado |
-| 07 Transferencia Antonio Fernández Soto, `botas`, 25 € | cliente desconocido | **dudoso**: no registra, pregunta |
-| 08 Publicidad del banco | no es un pago | se ignora |
-| 09 Bizum Silvia Cortés, `abono sandalias`, 5 € | importe mínimo | registra si cabe; si supera lo pendiente, rechazo |
+## Los 9 correos de `data/correos/` y qué debe pasar con cada uno
+Según el briefing; los correos están pensados para los apartados de ejemplo de la app.
 
-\* El resultado final depende de los apartados cargados en la app (seed): confirmar cada caso contra la app antes de cerrar el ticket.
+| Correo | Qué debe pasar |
+|---|---|
+| 01 Bizum Carmen Ruiz, 10 € | El nombre coincide con un único apartado activo: se registra el abono |
+| 09 Bizum Silvia Cortés, 5 € | Igual que el 01: se registra |
+| 02 Bizum `JORGE M.` | Ordenante abreviado, pero el concepto trae el nº de apartado: se encuentra por el número y se comprueba con el nombre |
+| 03 Transferencia Lucía Gómez | Paga justo lo que falta: el apartado queda **liquidado** (y el cliente recibe el aviso de recogida del flujo 2) |
+| 04 Bizum `LAURA O.` | Paga **más** de lo pendiente: la app lo rechaza, no se registra y se avisa a Marisa |
+| 05 Bizum `ROMERO D`, sin concepto | Solo apellido e inicial: se pregunta a Marisa antes de registrar nada |
+| 06 Bizum Paula Ramos | El apartado está **fuera de plazo**: no se puede abonar, se avisa a Marisa |
+| 07 Transferencia Antonio Fernández | No coincide con ningún cliente: se pregunta a Marisa |
+| 08 Publicidad del banco | No es un pago: se ignora |

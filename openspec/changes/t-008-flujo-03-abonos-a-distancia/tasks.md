@@ -1,6 +1,6 @@
 ## 1. Decisiones previas
 - [ ] 1.1 Decidir la forma de pago de las transferencias (decisión abierta del diseño) y anotarla
-- [ ] 1.2 Confirmar contra la app (seed) a qué apartado corresponde cada uno de los 9 correos
+- [ ] 1.2 Comprobar en la app que cada correo da el resultado de la tabla
 - [ ] 1.3 Crear las credenciales `Correo entrada` y `Modelo IA`
 
 ## 2. Entrada y filtro

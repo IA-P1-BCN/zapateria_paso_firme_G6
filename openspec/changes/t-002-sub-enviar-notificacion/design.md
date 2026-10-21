@@ -1,6 +1,6 @@
 ## Decisiones
 1. **Un solo punto de salida de mensajes.** Alternativa descartada: un nodo de correo en cada flujo (duplicado y distinto manejo de errores).
-2. **Canal: correo electrónico (SMTP)**. A confirmar con el briefing; si cambia, solo cambia este sub-workflow y los demás no se enteran.
+2. **Canal: correo electrónico.** El briefing acepta correo o Telegram, y los flujos 3 y 7 ya usan correo. El envío es por Gmail o SMTP: falta decidir qué cuenta (una compartida para la demo). Si cambia, solo cambia este sub-workflow.
 3. **Contrato de entrada:** `destinatario` (`cliente` o `tienda`), `email` (solo si es cliente), `asunto`, `mensaje` (texto plano), `contexto` (opcional, texto corto que identifica el apartado para el aviso a la tienda).
 4. **Contrato de salida:** `{enviado: true|false, motivo: ''|'sin_email'|'error_envio'}`. Nunca lanza error al flujo que llama (continuar en error).
 5. **Correo de la tienda en una variable de configuración** (Variables de n8n, o `$env` si la edición de n8n no las incluye), nunca escrito en el flujo.

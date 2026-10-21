@@ -1,5 +1,5 @@
 ## 1. Decisiones y credenciales
-- [ ] 1.1 Confirmar el canal (correo SMTP) con el briefing y anotarlo en el diseño
+- [ ] 1.1 Decidir con el equipo qué cuenta de correo (Gmail o SMTP) se usa y anotarlo en el diseño
 - [ ] 1.2 Crear la credencial `Correo salida` y la variable con el correo de la tienda (apuntar en la lista del README)
 
 ## 2. Sub-workflow

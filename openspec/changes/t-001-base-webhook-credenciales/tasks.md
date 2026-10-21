@@ -5,7 +5,7 @@
 ## 2. Workflow de entrada
 - [ ] 2.1 Crear `00 - Entrada tienda`: Webhook POST `tienda` con respuesta 200 inmediata
 - [ ] 2.2 Añadir el Switch por `$json.body.evento` con 4 ramas y una rama "desconocido"
-- [ ] 2.3 Conectar cada rama a un sub-workflow vacío (se sustituye por el real en cada T-xxx)
+- [ ] 2.3 Conectar cada rama a un sub-workflow vacío (se sustituye por el real en cada T-xxx); la rama `apartado.vencido` queda sin acción (NoOp)
 
 ## 3. Pruebas
 - [ ] 3.1 Probar con los 4 payloads (URL de test) y con un evento inventado
