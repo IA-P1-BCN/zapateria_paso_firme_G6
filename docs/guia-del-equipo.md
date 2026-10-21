@@ -15,7 +15,7 @@ Para las tres personas del equipo. Se hace **una vez por persona**, en su propio
 | Mapa del proceso (hoy y automatizado) | `docs/proceso-apartado-hoy.mmd` y `docs/proceso-apartado-automatizado.mmd` |
 | Flujos de n8n exportados | `workflows/` (un JSON por flujo) |
 | Bitácora de uso de IA | `docs/ai-log.md` (una sección por persona) |
-| Tickets | Tablero de GitHub (proyecto 41): `HU-01`…`HU-16` y `T-000`…`T-022` |
+| Tickets y Kanban | Tablero de GitHub: https://github.com/orgs/IA-P1-BCN/projects/41 (`HU-01`…`HU-16` y `T-000`…`T-022`) |
 
 Nota: el briefing habla de una carpeta `specs/`. Nosotros usamos `openspec/specs` y `openspec/changes`, que es lo mismo con la herramienta OpenSpec.
 
