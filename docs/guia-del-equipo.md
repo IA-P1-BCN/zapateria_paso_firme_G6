@@ -85,7 +85,54 @@ Solo **una instancia** debe tener activo un flujo programado o el que lee el cor
 
 Entrega: **jueves 29 de octubre de 2026, 23:59** (objetivo: antes de las 18:00). Puerta de control el lunes 26 por la tarde.
 
-## 8. Decisiones abiertas
+## 8. Flujos compartidos, credenciales no
+
+- **Los flujos se comparten por Git.** Cada persona exporta su flujo desde n8n a `workflows/<nombre>.json`, lo sube en su PR, y las demás lo **importan** en su n8n (menú del flujo → Import from file). n8n no sincroniza nada entre instancias: cada una tiene su propia base de datos.
+- **Las credenciales no se comparten ni viajan en el JSON.** El flujo solo lleva el *nombre* de la credencial. Por eso cada persona debe crear las cuatro credenciales de la sección 4 **en su propio n8n, con los mismos nombres**. Si el nombre coincide, el flujo importado funciona sin tocar nada.
+- **Los sub-workflows (`SUB - …`) cambian de identificador interno al importarlos.** Tras importar un flujo que los llama, vuelve a elegirlos en los nodos *Execute Workflow*.
+- Antes de subir un export, abre el JSON y comprueba que no lleva claves ni direcciones reales.
+
+## 9. Trabajar con Claude Code (para quien lo use, por ejemplo Anna)
+
+1. Abre Claude Code **desde la raíz del repositorio** (`paso-firme`): así carga `CLAUDE.md`, `.mcp.json`, las skills de OpenSpec y los comandos `/opsx:*`.
+2. `CLAUDE.md` importa `AGENTS.md`: ahí están las reglas del proyecto (no poner claves, no recalcular importes, la IA no decide dinero, no activar flujos sin permiso…). Claude las sigue en cada sesión.
+3. Comandos de OpenSpec en Claude: `/opsx:propose`, `/opsx:explore`, `/opsx:apply`, `/opsx:archive`. Valida un change con `openspec validate <change> --strict`.
+4. **`n8n-mcp` (opcional):** permite a Claude leer y crear flujos en tu n8n. Para activarlo:
+   - En tu n8n: Settings → n8n API → Create an API key (scope *All*).
+   - Guarda la clave en tu terminal como variable, sin pegarla en ningún fichero del repo: `echo 'export N8N_API_KEY=tu_clave' >> ~/.zshrc`, abre un terminal nuevo y arranca Claude desde `paso-firme`.
+   - El `.mcp.json` ya apunta a `http://localhost:5678` y lee `N8N_API_KEY`.
+5. Claude Code se reserva para specs, tickets, documentos y revisión de PR. La construcción de flujos se hace preferentemente con OpenCode (ver `AGENTS.md`, sección "Qué agente hace qué").
+6. Anota los usos relevantes en tu sección de `docs/ai-log.md`, incluidos los errores del modelo.
+
+## 10. Trabajar con OpenCode (para quien lo use, por ejemplo Leandro)
+
+1. Abre OpenCode **desde la raíz del repositorio**. Lee `AGENTS.md` automáticamente.
+2. Los comandos de OpenSpec están en `.opencode/commands/`: `/opsx-propose`, `/opsx-explore`, `/opsx-apply`, `/opsx-archive`. Sus skills están en `.opencode/skills/`.
+3. Usa modelos gratuitos para generar y depurar flujos de n8n (es lo que pide el briefing). Antes de dar un flujo por bueno, pruébalo con un payload de ejemplo.
+4. **`n8n-mcp` en OpenCode no está configurado en el repositorio.** El `.mcp.json` es de Claude Code. Si quieres que OpenCode llegue a tu n8n, añade el servidor `n8n-mcp` en tu **configuración local** de OpenCode (consulta su documentación para el formato) con `N8N_API_URL=http://localhost:5678` y tu propia clave de API de n8n. No subas esa configuración al repositorio si contiene la clave.
+5. Anota los usos relevantes en tu sección de `docs/ai-log.md`.
+
+## 11. Cómo usar OpenSpec
+
+- `openspec/specs/`: cómo funciona **hoy** el sistema (API de la tienda, webhook, reglas de apartado). Es la fuente de verdad.
+- `openspec/changes/<nombre>/`: un change por ticket, con `proposal.md`, `design.md`, `specs/` y `tasks.md`. El cuerpo del ticket de GitHub es ese mismo change.
+- Orden de trabajo: leer el change → construir el flujo siguiendo `tasks.md` → exportar a `workflows/` → archivar el change (`/opsx:archive` en Claude, `/opsx-archive` en OpenCode, o `openspec archive <change>`) **en la misma PR**.
+- `openspec list` muestra los changes activos; `openspec validate --changes --strict` los valida.
+
+## 12. Qué cambiamos en la configuración y por qué
+
+| Fichero | Cambio | Motivo |
+|---|---|---|
+| `docker-compose.yml` (servicio `n8n`) | `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` | n8n 2.x bloquea `$env` en los nodos por defecto; sin esto los flujos no pueden leer variables como el umbral de venta grande |
+| `docker-compose.yml` (servicio `n8n`) | `EMAIL_TIENDA`, `UMBRAL_VENTA_GRANDE` | Valores que cambian y no deben ir fijos en los flujos |
+| `.env.example` | Añade `EMAIL_TIENDA` (vacío) y `UMBRAL_VENTA_GRANDE=80` | Que cada persona sepa qué variables rellenar |
+| `.mcp.json` | Servidor `n8n-mcp`, lee `N8N_API_KEY` del entorno | Que Claude Code pueda trabajar con tu n8n sin guardar la clave en el repo |
+| `AGENTS.md` | Reglas del proyecto, reparto, calendario, convenciones de n8n y Git | Una sola fuente de reglas para personas y agentes |
+| `CLAUDE.md` | Importa `AGENTS.md` y añade comandos | Claude Code no lee `AGENTS.md` por sí solo |
+
+El `Dockerfile` de la tienda **no se ha tocado**: la app no se modifica.
+
+## 13. Decisiones abiertas
 
 - Forma de pago de las transferencias (la app solo admite `efectivo`, `tarjeta` y `bizum`).
 - Dónde guardar el histórico de cierres diarios (T-006).
