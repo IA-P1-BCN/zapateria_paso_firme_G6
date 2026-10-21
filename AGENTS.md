@@ -82,6 +82,13 @@ Cada flujo es un JSON distinto en `workflows/`, así que no se pisan. Puntos com
 - **Dos clases de tickets:** las **historias de usuario** (`HU-01`…`HU-16`) y los **tickets de trabajo** `T-000`, `T-001`… (uno por change/flujo). Se nombran siempre por su ID (`HU-03`, `T-004`), no por el número de GitHub.
 - Cada ticket de trabajo es **sub-issue** de su HU (así GitHub muestra el % de avance de la HU) y su cuerpo contiene todo el change (propuesta, diseño, tareas como checklist). Si no existe el ticket, se crea antes de empezar.
 
+## Qué agente hace qué
+El briefing recomienda OpenCode con modelos gratuitos y permite IA de pago si se delimita su alcance para no pisar el trabajo del equipo. Aquí:
+- **OpenCode (modelos gratuitos):** agente principal para generar y depurar flujos de n8n.
+- **Claude Code (de pago):** specs, tickets, documentos y revisión de PR. No edita flujos que está construyendo otra persona.
+- Cada persona trabaja en su rama y sus tickets; el agente solo toca los archivos del ticket en curso.
+- Los sub-workflows se llaman por identificador interno, que cambia entre instancias de n8n: tras importar un flujo, volver a elegirlos en los nodos *Execute Workflow*.
+
 ## Bitácora de IA
 Cada vez que se usa un agente para algo relevante se anota en `docs/ai-log.md`: qué herramienta y modelo, qué se pidió, qué salió, qué se corrigió a mano y qué se aprendió. Se anota también cuando la IA se equivoca.
 
