@@ -38,7 +38,10 @@ Nota: el briefing habla de una carpeta `specs/`. Nosotros usamos `openspec/specs
 | `EMAIL_TIENDA` | Dirección de correo de la tienda (avisos a la tienda) | La dirección del buzón compartido del equipo; se pasa en privado |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" | `80` |
 
-Si falta alguna de las dos últimas en tu `.env.example`, añádelas. En `.env.example` **`EMAIL_TIENDA` va vacío** (el repositorio es público); el valor real solo va en tu `.env`.
+**Recuerda:** en `.env.example` se han añadido `EMAIL_TIENDA` y `UMBRAL_VENTA_GRANDE`. Si tu `.env` se copió antes de este cambio, añade esas dos líneas a mano.
+
+- `EMAIL_TIENDA` va **vacío** en `.env.example` (el repositorio es público); el valor real solo va en tu `.env`.
+- `UMBRAL_VENTA_GRANDE=80` va **con su valor** en `.env.example`: es un importe de negocio, no un secreto, y así todos parten del mismo valor por defecto.
 
 Dentro de un flujo se leen así: `{{ $env.UMBRAL_VENTA_GRANDE }}` y `{{ $env.EMAIL_TIENDA }}`. Para que `$env` funcione, `docker-compose.yml` ya incluye `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`.
 
