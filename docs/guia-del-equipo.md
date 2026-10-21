@@ -35,7 +35,7 @@ Nota: el briefing habla de una carpeta `specs/`. Nosotros usamos `openspec/specs
 | `API_KEY` | Clave de la app de la tienda | La eliges tú; puede ser distinta en cada persona |
 | `N8N_WEBHOOK_URL` | Dónde avisa la app a n8n | La que indica `.env.example` |
 | `SEED` | Datos de ejemplo al arrancar | Dejar el valor de `.env.example` |
-| `EMAIL_TIENDA` | Dirección de correo de la tienda (avisos a la tienda) | La dirección del buzón compartido del equipo; se pasa en privado |
+| `EMAIL_TIENDA` | Dirección de correo de la tienda (avisos a la tienda) | `pasofirme.g6@gmail.com` (buzón compartido del equipo) |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" | `80` |
 
 **Recuerda:** en `.env.example` se han añadido `EMAIL_TIENDA` y `UMBRAL_VENTA_GRANDE`. Si tu `.env` se copió antes de este cambio, añade esas dos líneas a mano.
@@ -52,17 +52,17 @@ Los flujos solo guardan el **nombre** de la credencial, nunca el valor. Por eso 
 | Nombre | Tipo | Datos |
 |---|---|---|
 | `Tienda API` | Header Auth | Nombre de cabecera `X-API-Key`; valor = el `API_KEY` de tu `.env` |
-| `Correo salida` | SMTP | Host `smtp.gmail.com`, puerto `465`, SSL activado; usuario = buzón compartido; contraseña = contraseña de aplicación |
+| `Correo salida` | SMTP | Host `smtp.gmail.com`, puerto `465`, SSL activado; usuario = `pasofirme.g6@gmail.com`; contraseña = contraseña de aplicación |
 | `Correo entrada` | IMAP | Host `imap.gmail.com`, puerto `993`, SSL activado; mismos usuario y contraseña de aplicación |
 | `Modelo IA` | Groq | Tu propia clave de https://console.groq.com (cada persona crea la suya) |
 
-Contraseña de aplicación de Gmail: se crea en la cuenta de Google con la verificación en dos pasos activada (Seguridad → Contraseñas de aplicaciones). Se comparte **en privado** (mensaje directo o gestor de contraseñas), nunca en el chat de una IA, en GitHub ni en un fichero del repositorio.
+**La cuenta de Google ya está creada: nadie tiene que crear otra ni una contraseña de aplicación nueva.** La contraseña de aplicación está en el **grupo de conversación del equipo**: cópiala de ahí en tus credenciales `Correo salida` y `Correo entrada`. No la pegues en el chat de una IA, en GitHub ni en ningún fichero del repositorio.
 
 ## 5. Qué no se sube nunca a Git
 
 - `.env` y cualquier clave, token o contraseña.
 - Valores de credenciales dentro de un JSON de flujo (revisar el export antes de subirlo).
-- La dirección real del buzón en documentos o en `.env.example`.
+- La contraseña de la cuenta de Google o la contraseña de aplicación. (La dirección del buzón sí aparece en esta guía; en `.env.example` se deja vacía y el valor va en tu `.env`.)
 
 ## 6. Cómo trabajamos (resumen; el detalle está en `AGENTS.md`)
 
