@@ -34,3 +34,10 @@ Se anota cada uso relevante de un agente: qué herramienta y modelo, qué se pid
 - Qué salió: los 22 tickets (#17…#39), pero el script tenía fallos: `declare -A` (no existe en el bash de macOS), un tipo `Date` que la API rechaza, y algunos tickets quedaron sin estado ni tamaño porque el proyecto ya los había añadido solo.
 - Qué se corrigió a mano: se detectó al comprobar el tablero y se repasó ticket por ticket.
 - Aprendizaje: comprobar siempre el resultado en GitHub después de una operación masiva; crear de uno en uno con pausa evita bloqueos.
+
+### 2026-10-22 · T-003 · SUB - Buscar apartado
+- Herramienta / modelo: Claude Code (Opus 5.5).
+- Qué se pidió: construir el sub-workflow de búsqueda tolerante (por `id` o por texto) siguiendo el change de T-003.
+- Qué salió: la lógica de normalizar, trocear y puntuar se probó primero en Node contra los apartados reales de la API (12 casos y empates sintéticos) y después dentro de n8n con un flujo de prueba temporal: 12 casos correctos, también los liquidados (`ninguno`) y el id inexistente (404 → `ninguno`).
+- Qué se corrigió a mano: (1) la expresión `[̀-ͯ]` para quitar acentos se rompía al incrustar el código en el JSON del flujo; se cambió por `\p{M}`. (2) El export por CLI de n8n incluía el bloque `shared` con el nombre y el correo de la dueña de la instancia; se dejó solo lo que exporta el botón *Download*. (3) Se probó primero llamando al sub-workflow desde otro flujo, pero n8n 2.x solo ejecuta sub-workflows publicados; como publicar requiere permiso, la prueba pasó el JSON del sub-workflow en línea.
+- Aprendizaje: un 401 o 500 de la tienda no debe convertirse en `ninguno` (el flujo 3 acabaría preguntando a Marisa por cada pago), así que el sub-workflow lanza error en esos casos. Para que el flujo 3 lo llame, `SUB - Buscar apartado` tendrá que estar publicado en la instancia que tenga activo el flujo 3.
