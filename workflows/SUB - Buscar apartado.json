@@ -1,0 +1,236 @@
+{
+  "name": "SUB - Buscar apartado",
+  "nodes": [
+    {
+      "id": "a1f0c3e2-0001-4b1a-9c11-000000000001",
+      "name": "Entrada",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "id",
+              "type": "any"
+            },
+            {
+              "name": "texto"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a1f0c3e2-0002-4b1a-9c11-000000000002",
+      "name": "Preparar entrada",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Acepta \"12\" o \"#12\" en id; si no hay id válido se busca por texto.\nconst { id, texto } = $input.first().json;\nconst limpio = String(id ?? '').replace('#', '').trim();\nreturn [{ json: { id: /^\\d+$/.test(limpio) ? Number(limpio) : null, texto: String(texto ?? '') } }];"
+      }
+    },
+    {
+      "id": "a1f0c3e2-0003-4b1a-9c11-000000000003",
+      "name": "¿Busca por id?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c0d1e2f3-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.id !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1f0c3e2-0004-4b1a-9c11-000000000004",
+      "name": "Apartado por id",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        -100
+      ],
+      "parameters": {
+        "url": "=http://tienda:8000/api/apartados/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "id": "a1f0c3e2-0005-4b1a-9c11-000000000005",
+      "name": "Resultado por id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "// 404 → ninguno. Cualquier otro error de la app (401, 500) se lanza: no es \"no encontrado\".\nconst r = $input.first().json;\nif (r.statusCode === 404) return [{ json: { resultado: 'ninguno', candidatos: [] } }];\nif (r.statusCode !== 200) throw new Error(`La tienda respondió ${r.statusCode}: ${JSON.stringify(r.body)}`);\nconst a = r.body;\n// Solo apartados que pueden recibir abonos.\nif (a.estado !== 'activo') return [{ json: { resultado: 'ninguno', candidatos: [] } }];\nconst { id, cliente, producto, talla, precio, abonado, pendiente, fecha_limite, estado } = a;\nreturn [{ json: { resultado: 'unico', candidatos: [{ id, cliente, producto, talla, precio, abonado, pendiente, fecha_limite, estado }] } }];"
+      }
+    },
+    {
+      "id": "a1f0c3e2-0006-4b1a-9c11-000000000006",
+      "name": "Apartados activos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        100
+      ],
+      "alwaysOutputData": true,
+      "parameters": {
+        "url": "http://tienda:8000/api/apartados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "estado",
+              "value": "activo"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "id": "a1f0c3e2-0007-4b1a-9c11-000000000007",
+      "name": "Puntuar candidatos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Minúsculas, sin acentos y sin puntuación.\nfunction normalizar(s) {\n  return String(s ?? '')\n    .normalize('NFD').replace(/\\p{M}/gu, '')\n    .toLowerCase().replace(/[^a-z0-9#]+/g, ' ').trim();\n}\n\nconst PARTICULAS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'y']);\n\n// Trozos del texto que pueden ser parte de un nombre: 3 letras o más, sin partículas.\nfunction trozos(s) {\n  return [...new Set(normalizar(s).split(' ')\n    .filter(t => /^[a-z]{3,}$/.test(t) && !PARTICULAS.has(t)))];\n}\n\n// Un trozo coincide con una palabra del nombre si es igual o, con 4 letras o más, su comienzo.\nfunction coincide(trozo, palabra) {\n  return palabra === trozo || (trozo.length >= 4 && palabra.startsWith(trozo));\n}\n\nfunction puntuar(trozosTexto, cliente) {\n  const palabras = normalizar(cliente).split(' ');\n  return trozosTexto.filter(t => palabras.some(p => coincide(t, p))).length;\n}\n\n// Número de apartado escrito en el texto: \"#12\", \"apartado 2\", \"ap. 3\", \"nº 4\".\nfunction pistaId(s) {\n  const m = normalizar(s).match(/(?:#|\\bapartado\\s+|\\bap\\s+|\\bn[ou]?\\s+)(\\d+)\\b/);\n  return m ? Number(m[1]) : null;\n}\n\nconst resumen = a => ({\n  id: a.id, cliente: a.cliente, producto: a.producto, talla: a.talla, precio: a.precio,\n  abonado: a.abonado, pendiente: a.pendiente, fecha_limite: a.fecha_limite, estado: a.estado,\n});\n\nfunction buscar(texto, apartados) {\n  const activos = apartados.filter(a => a.estado === 'activo');\n  const t = trozos(texto);\n  const puntuados = activos.map(a => ({ a, puntos: puntuar(t, a.cliente) }))\n    .filter(x => x.puntos > 0);\n\n  // El número solo cuenta si ese apartado también coincide con algún trozo del nombre.\n  const id = pistaId(texto);\n  const porId = puntuados.find(x => x.a.id === id);\n  let elegidos;\n  if (porId) {\n    elegidos = [porId.a];\n  } else {\n    const max = Math.max(0, ...puntuados.map(x => x.puntos));\n    elegidos = puntuados.filter(x => x.puntos === max).map(x => x.a);\n  }\n  const resultado = elegidos.length === 0 ? 'ninguno' : elegidos.length === 1 ? 'unico' : 'varios';\n  return { resultado, candidatos: elegidos.map(resumen) };\n}\n\nconst texto = $('Preparar entrada').first().json.texto;\n// \"Apartados activos\" saca un item vacío si no hay ninguno (alwaysOutputData).\nconst apartados = $input.all().map(i => i.json).filter(a => a.id !== undefined);\nreturn [{ json: buscar(texto, apartados) }];"
+      }
+    }
+  ],
+  "pinData": null,
+  "connections": {
+    "Entrada": {
+      "main": [
+        [
+          {
+            "node": "Preparar entrada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar entrada": {
+      "main": [
+        [
+          {
+            "node": "¿Busca por id?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Busca por id?": {
+      "main": [
+        [
+          {
+            "node": "Apartado por id",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apartados activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartado por id": {
+      "main": [
+        [
+          {
+            "node": "Resultado por id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartados activos": {
+      "main": [
+        [
+          {
+            "node": "Puntuar candidatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "99e4f9ab-fddc-4713-a480-a249e8b84b9b",
+  "meta": {},
+  "id": "PewRzSO2LkZ1xm9v",
+  "tags": []
+}
