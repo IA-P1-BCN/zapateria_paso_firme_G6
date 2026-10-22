@@ -70,7 +70,7 @@ Para pararlo: `docker compose down`. Para borrar también los datos: `docker com
 | `API_KEY` | Clave que la app exige en la cabecera `X-API-Key` |
 | `N8N_WEBHOOK_URL` | Dónde avisa la app a n8n (valor de `.env.example`) |
 | `SEED` | `1` carga datos de ejemplo al arrancar; `0` arranca vacía (migración) |
-| `EMAIL_TIENDA` | Buzón de la tienda para los avisos a Marisa |
+| `EMAIL_TIENDA` | Buzón de la tienda: recibe los avisos a Marisa y es también el remitente de los correos |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" (por defecto `80`) |
 
 Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
@@ -112,6 +112,35 @@ Busca el apartado de una persona a partir de un identificador o de un nombre esc
 - El texto se compara sin mayúsculas, acentos ni puntuación, por trozos de 3 letras o más (`de`, `del`, `la`… se ignoran). Gana el apartado que coincide con más trozos; si empatan varios, `varios`.
 - Un número en el texto (`#2`, `apartado 2`) solo se usa si ese apartado también coincide con algún trozo del nombre.
 - Un id inexistente (404) o un apartado no activo devuelve `ninguno`. Cualquier otro error de la app (401, 500) **lanza error**, para no confundirlo con "no encontrado".
+- Para que otro flujo lo llame, el sub-workflow tiene que estar **publicado** en esa instancia de n8n.
+
+#### `SUB - Enviar notificación` (T-002)
+
+Envía un correo de texto a una clienta o a la tienda (Marisa). Lo usan los flujos que avisan por correo. Usa la credencial `Correo salida` y la variable `EMAIL_TIENDA`. **Nunca lanza error al flujo que lo llama**: el resultado dice si se envió.
+
+**Entrada** (*Execute Workflow*):
+
+| Campo | Tipo | Ejemplo | Nota |
+|---|---|---|---|
+| `destinatario` | texto | `cliente`, `tienda` | `tienda` envía a `EMAIL_TIENDA` |
+| `email` | texto | `carmen@example.com` | Solo para `cliente`; puede venir vacío o no venir |
+| `asunto` | texto | `Tu apartado en Paso Firme` | |
+| `mensaje` | texto | `Hola Carmen, hemos registrado tu apartado.` | Texto plano |
+| `contexto` | texto | `Apartado 25 - Carmen Ruiz` | Opcional; identifica el apartado en el aviso a la tienda |
+
+**Salida:**
+
+```json
+{ "enviado": true, "motivo": "" }
+```
+
+| `enviado` | `motivo` | Cuándo |
+|---|---|---|
+| `true` | `""` | Correo enviado a la clienta o a la tienda |
+| `false` | `sin_email` | `cliente` sin `email`: no se envía a la clienta y se avisa a la tienda con el `contexto` |
+| `false` | `error_envio` | Falló el servidor de correo, o `destinatario` no es `cliente` ni `tienda` |
+
+- Quien lo llama no tiene que capturar errores: mira `enviado` y, si es `false`, `motivo`.
 - Para que otro flujo lo llame, el sub-workflow tiene que estar **publicado** en esa instancia de n8n.
 
 ### Estructura del repositorio
@@ -210,7 +239,7 @@ To stop: `docker compose down`. To also delete the data: `docker compose down -v
 | `API_KEY` | Key the app requires in the `X-API-Key` header |
 | `N8N_WEBHOOK_URL` | Where the app notifies n8n (value from `.env.example`) |
 | `SEED` | `1` loads sample data on start; `0` starts empty (migration) |
-| `EMAIL_TIENDA` | Shop mailbox for alerts to Marisa |
+| `EMAIL_TIENDA` | Shop mailbox: receives the alerts to Marisa and is also the sender of the emails |
 | `UMBRAL_VENTA_GRANDE` | Amount in € from which a sale counts as "large" (default `80`) |
 
 Inside a workflow they are read with `{{ $env.NAME }}`.
@@ -252,6 +281,35 @@ Finds a person's layaway from an ID or from a name written in any form (`JORGE M
 - Text is compared ignoring case, accents and punctuation, in chunks of 3+ letters (`de`, `del`, `la`… are skipped). The layaway matching the most chunks wins; a tie returns `varios`.
 - A number in the text (`#2`, `apartado 2`) is only used if that layaway also matches part of the name.
 - A missing ID (404) or a non-active layaway returns `ninguno`. Any other app error (401, 500) **raises an error**, so it is never mistaken for "not found".
+- To be called from another workflow, the sub-workflow must be **published** on that n8n instance.
+
+#### `SUB - Enviar notificación` (T-002)
+
+Sends a plain-text email to a customer or to the shop (Marisa). Used by the workflows that notify by email. It uses the `Correo salida` credential and the `EMAIL_TIENDA` variable. It **never raises an error to its caller**: the result says whether the email was sent.
+
+**Input** (*Execute Workflow*):
+
+| Field | Type | Example | Note |
+|---|---|---|---|
+| `destinatario` | text | `cliente`, `tienda` | `tienda` sends to `EMAIL_TIENDA` |
+| `email` | text | `carmen@example.com` | Only for `cliente`; may be empty or missing |
+| `asunto` | text | `Tu apartado en Paso Firme` | |
+| `mensaje` | text | `Hola Carmen, hemos registrado tu apartado.` | Plain text |
+| `contexto` | text | `Apartado 25 - Carmen Ruiz` | Optional; identifies the layaway in the alert to the shop |
+
+**Output:**
+
+```json
+{ "enviado": true, "motivo": "" }
+```
+
+| `enviado` | `motivo` | When |
+|---|---|---|
+| `true` | `""` | Email sent to the customer or to the shop |
+| `false` | `sin_email` | `cliente` without `email`: nothing is sent to the customer and the shop is alerted with the `contexto` |
+| `false` | `error_envio` | The mail server failed, or `destinatario` is neither `cliente` nor `tienda` |
+
+- The caller does not need to catch errors: it checks `enviado` and, if `false`, `motivo`.
 - To be called from another workflow, the sub-workflow must be **published** on that n8n instance.
 
 ### Repository layout
