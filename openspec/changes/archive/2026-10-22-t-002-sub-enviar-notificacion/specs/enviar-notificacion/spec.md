@@ -28,3 +28,11 @@ Si el servidor de correo falla, el sub-workflow SHALL devolver `enviado` = false
 - **WHEN** el envío devuelve un error
 - **THEN** el flujo que llama sigue ejecutándose
 - **AND** recibe `enviado` = false y `motivo` = `error_envio`
+
+### Requirement: Destinatario desconocido
+El sub-workflow SHALL devolver `enviado` = false y `motivo` = `error_envio` cuando `destinatario` no es `cliente` ni `tienda`, sin enviar ningún correo y sin lanzar error.
+
+#### Scenario: Destinatario mal escrito
+- **WHEN** se llama con `destinatario` distinto de `cliente` y `tienda`
+- **THEN** no se envía ningún correo
+- **AND** devuelve `enviado` = false y `motivo` = `error_envio`
