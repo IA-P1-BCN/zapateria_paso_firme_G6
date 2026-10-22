@@ -1,0 +1,415 @@
+{
+  "name": "SUB - Enviar notificación",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"destinatario\": \"cliente\",\n  \"email\": \"carmen@example.com\",\n  \"asunto\": \"Tu apartado en Paso Firme\",\n  \"mensaje\": \"Hola Carmen, hemos registrado tu apartado.\",\n  \"contexto\": \"Apartado 25 - Carmen Ruiz\"\n}"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        -240
+      ],
+      "id": "a864faa5-a677-4048-b73b-cb680ee3501d",
+      "name": "Recibir notificación"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.destinatario }}",
+                    "rightValue": "tienda",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ff2ed10a-4fea-49f0-a8c1-4737c9b1a904"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tienda"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "6280f606-bbcc-4dcb-9336-05c9daf4147d",
+                    "leftValue": "={{ $json.destinatario }}",
+                    "rightValue": "cliente",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "=cliente"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        -400,
+        -256
+      ],
+      "id": "2c3e044a-1f44-44a1-b2c0-427136bb203e",
+      "name": "Elegir destino"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "347973cd-f1ed-4845-b5f2-36807a767361",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        80,
+        -208
+      ],
+      "id": "1f6c39e6-9ba2-4535-8e91-c2f374695a03",
+      "name": "¿Tiene email?"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.EMAIL_TIENDA }}",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.asunto }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensaje }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        -432
+      ],
+      "id": "bdf10583-3ec5-4dbc-b857-0388c5770ac2",
+      "name": "Enviar correo a la clienta",
+      "webhookId": "e859324a-b37e-43a7-b4c7-571eb804b608",
+      "credentials": {
+        "smtp": {
+          "id": "xkOv1ZHIOdCytd0h",
+          "name": "Correo salida"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.EMAIL_TIENDA }}",
+        "toEmail": "={{ $env.EMAIL_TIENDA }}",
+        "subject": "={{ $json.asunto }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensaje }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        -624
+      ],
+      "id": "30468001-eea5-4dab-b709-54cdd737ef87",
+      "name": "Enviar correo a la dueña",
+      "webhookId": "e859324a-b37e-43a7-b4c7-571eb804b608",
+      "credentials": {
+        "smtp": {
+          "id": "xkOv1ZHIOdCytd0h",
+          "name": "Correo salida"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.EMAIL_TIENDA }}",
+        "toEmail": "={{ $env.EMAIL_TIENDA }}",
+        "subject": "=Aviso: no se pudo enviar un mensaje a una clienta",
+        "emailFormat": "text",
+        "text": "=No se pudo enviar el correo porque la clienta no tiene email.\nReferencia: {{ $json.contexto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        112
+      ],
+      "id": "06911015-3d2c-4d14-bbcd-486c922d02d4",
+      "name": "Avisar de falta de email",
+      "webhookId": "e859324a-b37e-43a7-b4c7-571eb804b608",
+      "credentials": {
+        "smtp": {
+          "id": "xkOv1ZHIOdCytd0h",
+          "name": "Correo salida"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "da936e03-024c-4594-b249-d4396feb30c2",
+              "name": "enviado",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "af7e45d0-5bb4-4583-8aa2-d6d0ac8fc606",
+              "name": "motivo",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        816,
+        -512
+      ],
+      "id": "8b28b00b-49d7-4609-b969-6fc595406b0a",
+      "name": "Devolver envío correcto"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3bbceb94-e625-4ebe-9cae-491c0aec6a5a",
+              "name": "enviado",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "af6533f6-3f31-4b90-8f8b-45dbbe8633bb",
+              "name": "motivo",
+              "value": "sin_email",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        416,
+        -176
+      ],
+      "id": "25e6a2c9-a0db-4bac-a86c-44c4fed8cb79",
+      "name": "Devolver falta de email"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8c8f3e75-42ed-483e-9d5c-114e93cf3d86",
+              "name": "enviado",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "de3eaae5-3242-4b29-a926-850b0dc28968",
+              "name": "motivo",
+              "value": "error_envio",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        864,
+        -336
+      ],
+      "id": "d98d9683-40cf-451c-97ce-31e300020b89",
+      "name": "Devolver error de envío"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir notificación": {
+      "main": [
+        [
+          {
+            "node": "Elegir destino",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Elegir destino": {
+      "main": [
+        [
+          {
+            "node": "Enviar correo a la dueña",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Devolver error de envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene email?": {
+      "main": [
+        [
+          {
+            "node": "Enviar correo a la clienta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar de falta de email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo a la dueña": {
+      "main": [
+        [
+          {
+            "node": "Devolver envío correcto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Devolver error de envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar correo a la clienta": {
+      "main": [
+        [
+          {
+            "node": "Devolver envío correcto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Devolver error de envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar de falta de email": {
+      "main": [
+        [
+          {
+            "node": "Devolver falta de email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Devolver error de envío",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0eeb3f62-9cca-459e-b650-19d742f407ab",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "q6tyyG7CNPz0y5kH",
+  "tags": []
+}
