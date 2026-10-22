@@ -1,0 +1,259 @@
+{
+  "name": "00 - Entrada tienda",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "tienda",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        -432,
+        -48
+      ],
+      "id": "69d1aecf-5e6e-4de0-8b2d-8b0158cfc78c",
+      "name": "Recibir aviso de la tienda",
+      "webhookId": "f97957bf-457d-4a93-8b9b-b4dd1aff1083"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.evento }}",
+                    "rightValue": "apartado.creado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "88efc9e0-5d7e-4052-9c85-f7aabd0ff8df"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "apartado.creado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "2935e74a-aec2-44f1-baec-8e3932453a26",
+                    "leftValue": "={{ $json.body.evento }}",
+                    "rightValue": "abono.registrado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "abono.registrado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "b4126720-a495-4014-a4a7-4a3d398e084c",
+                    "leftValue": "={{ $json.body.evento }}",
+                    "rightValue": "venta.registrada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "venta.registrada"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "34668312-6520-4c47-9b22-1838b689e0ac",
+                    "leftValue": "={{ $json.body.evento }}",
+                    "rightValue": "apartado.vencido",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "apartado.vencido"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        -144,
+        -96
+      ],
+      "id": "ec805cc1-8489-4940-a4cd-2df25eaad768",
+      "name": "Enrutar por evento"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -416
+      ],
+      "id": "ee415cf4-6dac-4c1a-83aa-87e96891bf8f",
+      "name": "Flujo 01 (T-004)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -240
+      ],
+      "id": "e9dcc931-18d3-42d2-9a02-a86440526ac0",
+      "name": "Flujo 02 (T-005)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -48
+      ],
+      "id": "601c650a-6c01-456b-9052-19856c6b25d2",
+      "name": "Flujo 04 (T-010)"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        304
+      ],
+      "id": "c18528cf-cfe9-44e5-8593-ddbe84f9a523",
+      "name": "Evento desconocido"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        112
+      ],
+      "id": "92fa9bd0-76c4-4b2a-b5d1-f69e0317eb22",
+      "name": "Sin acción (lo hace el flujo 06)"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir aviso de la tienda": {
+      "main": [
+        [
+          {
+            "node": "Enrutar por evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrutar por evento": {
+      "main": [
+        [
+          {
+            "node": "Flujo 01 (T-004)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flujo 02 (T-005)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flujo 04 (T-010)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sin acción (lo hace el flujo 06)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Evento desconocido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "204e93a8-1c67-444c-9413-458226432aa5",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "zquLdKYljU09laf4",
+  "tags": []
+}
