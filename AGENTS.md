@@ -30,6 +30,7 @@ Alcance actual: nivel **Esencial + Medio** (flujos 1, 2, 3, 5, 8, 4, 6, 7, migra
 
 ## Convenciones de n8n
 - **Nombres de flujo:** `01 - Confirmación de apartado`, `02 - Recibo de abono`… (número del briefing). Sub-workflows: `SUB - Enviar notificación`, `SUB - Buscar apartado`. Flujo de errores: `08 - Error Workflow`.
+- **Nombres de nodo:** en español, sin el tipo de nodo en el nombre (nada de `HTTP Request1` ni `Switch`). Verbo en infinitivo si el nodo actúa (`Preparar entrada`, `Puntuar candidatos`), sustantivo si va a buscar un dato (`Apartado por id`), y pregunta con `¿ ?` si es un IF (`¿Busca por id?`). El flujo de errores (T-007) avisa a Marisa con el nombre del nodo que falló, así que tiene que decir qué hacía.
 - **Un solo webhook** `/webhook/tienda` y un **Switch** por `$json.body.evento`. Los datos están en `$json.body.datos`.
 - **Sub-workflows** para lo que se repite (enviar mensaje, buscar apartado). No copiar nodos entre flujos.
 - **Credenciales:** mismo nombre en las dos instancias (ver lista en el README, sin valores).
