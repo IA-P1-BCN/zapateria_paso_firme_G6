@@ -10,10 +10,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.2,
       "position": [
-        -432,
-        -48
+        0,
+        368
       ],
-      "id": "69d1aecf-5e6e-4de0-8b2d-8b0158cfc78c",
+      "id": "8af4d164-71b2-4c1e-aad3-a26b6532980d",
       "name": "Recibir aviso de la tienda",
       "webhookId": "f97957bf-457d-4a93-8b9b-b4dd1aff1083"
     },
@@ -129,10 +129,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.5,
       "position": [
-        -144,
-        -96
+        288,
+        320
       ],
-      "id": "ec805cc1-8489-4940-a4cd-2df25eaad768",
+      "id": "fe5e2b17-02e7-4499-acf5-fb787fedc07b",
       "name": "Enrutar por evento"
     },
     {
@@ -140,21 +140,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        160,
-        -416
+        592,
+        176
       ],
-      "id": "ee415cf4-6dac-4c1a-83aa-87e96891bf8f",
-      "name": "Flujo 01 (T-004)"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        160,
-        -240
-      ],
-      "id": "e9dcc931-18d3-42d2-9a02-a86440526ac0",
+      "id": "7dec208e-8fd1-4871-84b1-8044207b49b7",
       "name": "Flujo 02 (T-005)"
     },
     {
@@ -162,10 +151,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        160,
-        -48
+        592,
+        368
       ],
-      "id": "601c650a-6c01-456b-9052-19856c6b25d2",
+      "id": "5d1da066-2d8f-4b6a-a094-519627274752",
       "name": "Flujo 04 (T-010)"
     },
     {
@@ -173,10 +162,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        160,
-        304
+        592,
+        720
       ],
-      "id": "c18528cf-cfe9-44e5-8593-ddbe84f9a523",
+      "id": "b4d3722e-ec09-4ef6-85a5-5c3e7d5ae392",
       "name": "Evento desconocido"
     },
     {
@@ -184,11 +173,60 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        160,
-        112
+        592,
+        528
       ],
-      "id": "92fa9bd0-76c4-4b2a-b5d1-f69e0317eb22",
+      "id": "e6831e03-9046-4d91-98d4-330f070ac7e5",
       "name": "Sin acción (lo hace el flujo 06)"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "3fLkKQj1x2O5JjeQ",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3fLkKQj1x2O5JjeQ",
+          "cachedResultName": "01 - Confirmación de apartado"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "evento": "={{ $json.body.evento }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "evento",
+              "displayName": "evento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "datos",
+              "displayName": "datos",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        592,
+        32
+      ],
+      "id": "c41df8ff-ed7c-430c-b6e5-2c08274fcd16",
+      "name": "Ejecutar flujo 01"
     }
   ],
   "pinData": {},
@@ -208,7 +246,7 @@
       "main": [
         [
           {
-            "node": "Flujo 01 (T-004)",
+            "node": "Ejecutar flujo 01",
             "type": "main",
             "index": 0
           }
@@ -249,11 +287,11 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "204e93a8-1c67-444c-9413-458226432aa5",
+  "versionId": "f83793f5-41a1-46b3-b945-84aba5cd2570",
   "meta": {
-    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+    "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
   },
   "nodeGroups": [],
-  "id": "zquLdKYljU09laf4",
+  "id": "fXJMk3sAewu0eCKf",
   "tags": []
 }
