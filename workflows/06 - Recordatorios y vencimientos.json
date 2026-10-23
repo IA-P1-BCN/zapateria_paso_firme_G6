@@ -1,0 +1,738 @@
+{
+  "name": "06 - Recordatorios y vencimientos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -512,
+        0
+      ],
+      "id": "e00d78b1-55e2-4088-bc35-18587ed988de",
+      "name": "Cada mañana a las 9"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -512,
+        224
+      ],
+      "id": "ab425b17-ddc4-44a5-b519-92c615085b41",
+      "name": "Probar a mano"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/apartados?estado=activo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -288,
+        0
+      ],
+      "id": "0d9c7f7a-cf94-48f4-84ec-f3259e8aa033",
+      "name": "Apartados activos",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });\n\nfunction sumarDias(fecha, dias) {\n  const d = new Date(fecha + 'T00:00:00Z');\n  d.setUTCDate(d.getUTCDate() + dias);\n  return d.toISOString().slice(0, 10);\n}\n\nconst en7 = sumarDias(hoy, 7);\nconst en1 = sumarDias(hoy, 1);\n\nconst salida = [];\nfor (const item of $input.all()) {\n  const a = item.json;\n  let tipo = null;\n  if (a.fecha_limite === en7) tipo = 'recordatorio_7';\n  else if (a.fecha_limite === en1) tipo = 'recordatorio_1';\n  else if (a.fecha_limite < hoy) tipo = 'vencer';\n  if (tipo) salida.push({ json: { ...a, tipo } });\n}\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        0
+      ],
+      "id": "407cb4f9-d112-4b57-a6ba-0ccd42ef6aa9",
+      "name": "Clasificar por fecha límite"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "recordatorio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "id": "36f1085f-fb2c-4ca0-9d6a-247e24c79fa1"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Recordatorio"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "4e921986-a571-466f-83a3-ddd53bd48cd0",
+                    "leftValue": "={{ $json.tipo }}",
+                    "rightValue": "vencer",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Vencer"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        160,
+        0
+      ],
+      "id": "2e17da6b-bbae-4bc2-8087-3c5d2ae7039d",
+      "name": "Separar recordatorios y vencimientos"
+    },
+    {
+      "parameters": {
+        "jsCode": "const avisados = $getWorkflowStaticData('global').avisados || {};\nreturn $input.all().filter(i => !avisados[`${i.json.id}:${i.json.tipo}`]);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -96
+      ],
+      "id": "89f424fc-cd0e-401b-a1a6-3e58abf49439",
+      "name": "Quitar ya avisados"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a201d818-2b04-4232-a704-d6810de19543",
+              "name": "destinatario",
+              "value": "=cliente",
+              "type": "string"
+            },
+            {
+              "id": "c79fa57c-9c47-4839-850c-b99162f5746f",
+              "name": "email",
+              "value": "={{ $json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "5720677c-cd8e-4fdc-a8b5-19ac911719e1",
+              "name": "contexto",
+              "value": "=Apartado {{ $json.id }} - {{ $json.cliente }}",
+              "type": "string"
+            },
+            {
+              "id": "4a68093f-5a34-4d47-b31b-83a8201032fa",
+              "name": "asunto",
+              "value": "={{ $json.tipo === 'recordatorio_1' ? 'Tu apartado en Paso Firme vence mañana' : 'Tu apartado en Paso Firme vence en 7 días' }}",
+              "type": "string"
+            },
+            {
+              "id": "b760c673-be6f-41c9-af23-dc19570ada99",
+              "name": "mensaje",
+              "value": "=Hola {{ $json.cliente.split(' ')[0] }}, te recordamos que tu apartado de {{ $json.producto }} (talla {{ $json.talla }}) vence el {{ $json.fecha_limite.split('-').reverse().join('/') }}{{ $json.tipo === 'recordatorio_1' ? ', es decir, mañana' : ', dentro de 7 días' }}. Te faltan por abonar {{ Number($json.pendiente).toFixed(2).replace('.', ',') }} €. Si no se completa a tiempo, el apartado vencerá y recibirás un vale por lo que ya has abonado. ¡Te esperamos en Zapatería Paso Firme!",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        608,
+        -96
+      ],
+      "id": "c979bf69-14dc-48cb-8db7-dda585096d72",
+      "name": "Preparar recordatorio"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q6tyyG7CNPz0y5kH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q6tyyG7CNPz0y5kH",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "14047ef6-5786-4c9c-85eb-948df5740c91",
+      "name": "Enviar recordatorio"
+    },
+    {
+      "parameters": {
+        "jsCode": "const memoria = $getWorkflowStaticData('global');\nmemoria.avisados = memoria.avisados || {};\nconst previos = $('Preparar recordatorio').all();\n\n$input.all().forEach((item, i) => {\n  if (item.json.enviado) {\n    const p = previos[i].json;\n    memoria.avisados[`${p.id}:${p.tipo}`] = true;\n  }\n});\n\nreturn $input.all().map(i => ({ json: i.json }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        -96
+      ],
+      "id": "6f6ac0f6-ee93-4bb6-b2d6-2bbec984d3c7",
+      "name": "Anotar recordatorios avisados"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://tienda:8000/api/apartados/{{ $json.id }}/vencer",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        144
+      ],
+      "id": "cf129fa3-21e4-4ce1-9bbe-2069145725ed",
+      "name": "Vencer apartado",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const salida = [];\nfor (const item of $input.all()) {\n  const { statusCode, body } = item.json;\n  if (statusCode === 200) {\n    salida.push({ json: body });\n  } else if (statusCode !== 422) {\n// 422 = ya no estaba activo: se ignora a propósito; cualquier otro código es un fallo real\n    throw new Error(`vencer respondió ${statusCode}: ${JSON.stringify(body)}`);\n  }\n}\nreturn salida;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        144
+      ],
+      "id": "7fd95472-2ab7-4956-b5cd-11105d1e2738",
+      "name": "Separar vencidos de errores"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ff4407a3-a65d-4032-98f5-89efcc832743",
+              "name": "destinatario",
+              "value": "cliente",
+              "type": "string"
+            },
+            {
+              "id": "b5620387-0fa2-4403-a55b-f0a83b5f0def",
+              "name": "email",
+              "value": "={{ $json.apartado.email }}",
+              "type": "string"
+            },
+            {
+              "id": "fce74fed-5943-4908-a0a8-4209a2c4e2ad",
+              "name": "asunto",
+              "value": "Tu apartado en Paso Firme ha vencido",
+              "type": "string"
+            },
+            {
+              "id": "508cd3aa-8faf-4b18-8222-60f7f4c7bc12",
+              "name": "mensaje ",
+              "value": "=Hola {{ $json.apartado.cliente.split(' ')[0] }}, el plazo de tu apartado de {{ $json.apartado.producto }} (talla {{ $json.apartado.talla }}) terminó el {{ $json.apartado.fecha_limite.split('-').reverse().join('/') }} y el apartado ha vencido. Lo que ya habías abonado no se pierde: te hemos generado un vale de compra, código {{ $json.vale.codigo }}, por {{ Number($json.vale.importe).toFixed(2).replace('.', ',') }} €. Los zapatos vuelven a estar a la venta. Gracias por confiar en Zapatería Paso Firme.",
+              "type": "string"
+            },
+            {
+              "id": "2026ceb7-3c2a-4c8c-a747-01164c623221",
+              "name": "contexto",
+              "value": "=Apartado {{ $json.apartado.id }} - {{ $json.apartado.cliente }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        832,
+        144
+      ],
+      "id": "978a75e3-2758-4f17-88b9-b6aae368226e",
+      "name": "Preparar aviso de vencimiento"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q6tyyG7CNPz0y5kH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q6tyyG7CNPz0y5kH",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1056,
+        144
+      ],
+      "id": "a2bc230f-1a6f-4115-bdde-6d5e53aed3db",
+      "name": "Enviar aviso de vencimiento"
+    },
+    {
+      "parameters": {
+        "jsCode": "const vencidos = $('Separar vencidos de errores').all().map(i => i.json.apartado);\nconst lineas = vencidos.map(a => `- ${a.cliente}: ${a.producto} (talla ${a.talla})`);\n\nreturn [{ json: {\n  destinatario: 'tienda',\n  email: '',\n  asunto: `Apartados vencidos hoy: ${vencidos.length}`,\n  mensaje: `Estos apartados han vencido hoy y los zapatos vuelven a estar a la venta:\\n\\n${lineas.join('\\n')}`,\n  contexto: 'Lista de apartados vencidos'\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        144
+      ],
+      "id": "811b76a6-04ec-41ae-aefc-dcc767f1d454",
+      "name": "Preparar lista para Marisa"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q6tyyG7CNPz0y5kH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q6tyyG7CNPz0y5kH",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1504,
+        144
+      ],
+      "id": "d0f6ac7d-c349-4aa1-b095-97ac343b2bd4",
+      "name": "Enviar lista a Marisa"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada mañana a las 9": {
+      "main": [
+        [
+          {
+            "node": "Apartados activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probar a mano": {
+      "main": [
+        [
+          {
+            "node": "Apartados activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartados activos": {
+      "main": [
+        [
+          {
+            "node": "Clasificar por fecha límite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar por fecha límite": {
+      "main": [
+        [
+          {
+            "node": "Separar recordatorios y vencimientos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar recordatorios y vencimientos": {
+      "main": [
+        [
+          {
+            "node": "Quitar ya avisados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Vencer apartado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quitar ya avisados": {
+      "main": [
+        [
+          {
+            "node": "Preparar recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar recordatorio": {
+      "main": [
+        [
+          {
+            "node": "Enviar recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar recordatorio": {
+      "main": [
+        [
+          {
+            "node": "Anotar recordatorios avisados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vencer apartado": {
+      "main": [
+        [
+          {
+            "node": "Separar vencidos de errores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar vencidos de errores": {
+      "main": [
+        [
+          {
+            "node": "Preparar aviso de vencimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar aviso de vencimiento": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso de vencimiento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar aviso de vencimiento": {
+      "main": [
+        [
+          {
+            "node": "Preparar lista para Marisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar lista para Marisa": {
+      "main": [
+        [
+          {
+            "node": "Enviar lista a Marisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HHKPnBEBF9SObOSU",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "ddebe141-1cb1-47b0-b1c1-49cc181278e1",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "qIxAZJxHs75Kjc0d",
+  "tags": []
+}
