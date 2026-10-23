@@ -1,0 +1,250 @@
+{
+  "name": "01 - Confirmación de apartado",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        272,
+        -80
+      ],
+      "name": "Recibir apartado",
+      "id": "aa84d259-ec6a-4b8d-b2a5-93c9d0a19f37",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Obtener los datos del apartado según la estructura recibida\nconst d = input.datos\n  ?? input.body?.datos\n  ?? input.body\n  ?? input;\n\n// Formatear importes en euros con coma decimal\nconst formatMoney = (value) => {\n  if (value === null || value === undefined || value === '') {\n    return '';\n  }\n\n  const n = Number(value);\n\n  if (!Number.isFinite(n)) {\n    return '';\n  }\n\n  return `${n.toLocaleString('es-ES', {\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 2\n  })} €`;\n};\n\n// Formatear fecha como dd/mm/aaaa\nconst formatDate = (value) => {\n  if (!value) {\n    return '';\n  }\n\n  const s = String(value).slice(0, 10);\n  const match = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n\n  return match\n    ? `${match[3]}/${match[2]}/${match[1]}`\n    : s;\n};\n\n// Preparar los datos para los siguientes nodos\nreturn [\n  {\n    json: {\n      ...d,\n\n      email: String(d.email ?? '').trim(),\n\n      esLiquidado:\n        String(d.estado ?? '').trim().toLowerCase() === 'liquidado',\n\n      destinatario: 'cliente',\n\n      asunto: `Confirmación de apartado ${d.id ?? ''}`.trim(),\n\n      contexto: `Apartado ${d.id ?? 'sin número'} - ${d.cliente ?? 'cliente'}`,\n\n      precioFormato: formatMoney(d.precio),\n      abonadoFormato: formatMoney(d.abonado),\n      pendienteFormato: formatMoney(d.pendiente),\n\n      fechaLimiteFormato: formatDate(d.fecha_limite)\n    }\n  }\n];"
+      },
+      "position": [
+        512,
+        -80
+      ],
+      "name": "Preparar datos y formatos",
+      "id": "7714a9a5-3619-49b3-a20d-33d0d464e03c",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true,
+              "id": "a1000001-0000-4000-8000-000000000003",
+              "leftValue": "={{ $json.esLiquidado }}"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        752,
+        -80
+      ],
+      "name": "¿Está liquidado?",
+      "id": "97e26c24-2849-4672-b984-2b310bee018c",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst mensaje = `Hola, ${d.cliente ?? 'cliente'}. Tu apartado de ${d.producto ?? 'producto'}, talla ${d.talla ?? 'no especificada'} está completamente abonado y ya puedes pasar a recogerlo.\\n¡Gracias por confiar en Paso Firme!`;\n\nreturn [{ json: { ...d, mensaje } }];"
+      },
+      "position": [
+        1024,
+        -192
+      ],
+      "name": "Crear mensaje de recogida",
+      "id": "8bd3cac6-a58f-4d59-92dd-3c67ee1ef745",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst mensaje = [\n  `Hola, ${d.cliente ?? 'cliente'}. Hemos registrado tu apartado de ${d.producto ?? 'producto'}, talla ${d.talla ?? 'no especificada'}.`,\n  `Precio total: ${d.precioFormato}`,\n  `Abonado: ${d.abonadoFormato}`,\n  `Pendiente: ${d.pendienteFormato}`,\n  `Fecha límite para recogerlo: ${d.fechaLimiteFormato}.`,\n  '¡Gracias por confiar en Paso Firme!'\n].join('\\n');\n\nreturn [{ json: { ...d, mensaje } }];"
+      },
+      "position": [
+        1024,
+        48
+      ],
+      "name": "Crear confirmación",
+      "id": "3add61ed-7d9d-4a06-a7fd-c11731fafda4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "3PGPmqbXAHGfMSE2",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3PGPmqbXAHGfMSE2",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "position": [
+        1312,
+        -80
+      ],
+      "name": "Enviar notificación",
+      "id": "cc9cfee6-836f-47ab-b591-4d82aae89734",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "¿Está liquidado?": {
+      "main": [
+        [
+          {
+            "node": "Crear mensaje de recogida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recibir apartado": {
+      "main": [
+        [
+          {
+            "node": "Preparar datos y formatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar datos y formatos": {
+      "main": [
+        [
+          {
+            "node": "¿Está liquidado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear confirmación": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear mensaje de recogida": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f5d3ba91-32bd-42e0-9cbb-1de9092778b5",
+  "meta": {
+    "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
+  },
+  "nodeGroups": [],
+  "id": "3fLkKQj1x2O5JjeQ",
+  "tags": []
+}
