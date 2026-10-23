@@ -60,6 +60,7 @@ docker compose up -d        # tienda en :8000, n8n en :5678
 2. Crea las credenciales de la tabla siguiente, **con estos nombres exactos**.
 3. Importa los flujos de [`workflows/`](workflows/) (menú del flujo → *Import from file*).
 4. En los flujos que llaman a un sub-workflow (`SUB - …`), vuelve a elegirlo en el nodo *Execute Workflow*: su identificador interno cambia en cada instancia.
+5. En cada flujo (salvo `08 - Error Workflow` y `SUB - Enviar notificación`), abre *Settings → Error workflow* y elige `08 - Error Workflow`: su identificador también cambia en cada instancia.
 
 Para pararlo: `docker compose down`. Para borrar también los datos: `docker compose down -v`.
 
@@ -142,6 +143,49 @@ Envía un correo de texto a una clienta o a la tienda (Marisa). Lo usan los fluj
 
 - Quien lo llama no tiene que capturar errores: mira `enviado` y, si es `false`, `motivo`.
 - Para que otro flujo lo llame, el sub-workflow tiene que estar **publicado** en esa instancia de n8n.
+
+### Migración del Excel (T-012, una sola vez)
+
+El flujo `Migración Excel` pasa a la app los apartados, abonos y ventas de las hojas de Marisa ([`data/excel_actual_apartados.csv`](data/excel_actual_apartados.csv) y [`data/excel_actual_ventas.csv`](data/excel_actual_ventas.csv)) y le envía por correo un informe con lo que no se ha cargado y por qué.
+
+**Antes de ejecutarla:**
+
+1. La tienda tiene que estar **vacía** y con el **webhook apagado**. Si no, cada apartado y cada venta antiguos dispararían sus avisos: confirmaciones a los clientes, aviso de venta grande… En el `.env` pon `SEED=0` y deja `N8N_WEBHOOK_URL=` vacío, y después:
+
+   ```bash
+   docker compose rm -sf tienda
+   docker volume ls                          # busca el volumen que acaba en _tienda_data
+   docker volume rm <carpeta>_tienda_data    # borra SOLO los datos de la tienda, no los de n8n
+   docker compose up -d tienda
+   ```
+
+2. Copia los CSV a n8n, que no ve la carpeta `data/` del repositorio:
+
+   ```bash
+   docker compose exec n8n mkdir -p /home/node/.n8n-files/migracion
+   docker compose cp data/excel_actual_apartados.csv n8n:/home/node/.n8n-files/migracion/
+   docker compose cp data/excel_actual_ventas.csv n8n:/home/node/.n8n-files/migracion/
+   ```
+
+3. El informe se envía con `SUB - Enviar notificación`: impórtalo, publícalo y elígelo en el nodo *Enviar informe a Marisa* (su identificador cambia en cada instancia). Comprueba también que existen las credenciales `Tienda API` y `Correo salida` y que `EMAIL_TIENDA` tiene valor: es la dirección que recibe el informe.
+
+**Ejecutarla:** abre el flujo en n8n y pulsa *Execute workflow*. Si se vuelve a ejecutar no duplica nada, porque antes de crear comprueba qué hay ya en la app.
+
+**Al terminar:** vuelve a poner en el `.env` el `N8N_WEBHOOK_URL` de `.env.example` y reinicia la tienda (`docker compose up -d tienda`) para que los avisos vuelvan a llegar a n8n.
+
+**Qué hace con los datos:**
+
+| Caso | Qué pasa |
+|---|---|
+| Fechas `7/9/26`, importes `15€`, nombres en minúscula | Se normalizan (`2026-09-07`, `15`, `Carmen Ruiz`) |
+| Varias filas del mismo cliente, modelo y talla | La primera es el apartado y las siguientes, sus abonos, en orden de fecha |
+| Abono inicial menor de 5 € (Lucía Gómez) | No se carga ni el apartado ni sus abonos; va al informe |
+| Ventas que son abonos (`abono inicial apartado`, `Abono Ana Torres mocasin`, `(apartado)`) | No se cargan como venta; dan la forma de pago de ese abono |
+| Abonos sin forma de pago conocida | Se cargan como `efectivo` y el informe lo señala como suposición |
+| Fila `TOTAL SEPTIEMBRE (a mano)` | Se ignora |
+| Al final | Compara lo pendiente de cada apartado con la columna `resta` y los totales con el Excel |
+
+Con los datos de ejemplo carga 7 apartados, 3 abonos posteriores y 6 ventas: 170,00 € en abonos y 213,85 € en ventas, igual que el Excel.
 
 ### Estructura del repositorio
 
@@ -229,6 +273,7 @@ docker compose up -d        # shop on :8000, n8n on :5678
 2. Create the credentials in the table below, **with these exact names**.
 3. Import the workflows from [`workflows/`](workflows/) (workflow menu → *Import from file*).
 4. In workflows that call a sub-workflow (`SUB - …`), pick it again in the *Execute Workflow* node: its internal ID differs on every instance.
+5. In every workflow (except `08 - Error Workflow` and `SUB - Enviar notificación`), open *Settings → Error workflow* and pick `08 - Error Workflow`: its ID also differs on every instance.
 
 To stop: `docker compose down`. To also delete the data: `docker compose down -v`.
 
@@ -311,6 +356,49 @@ Sends a plain-text email to a customer or to the shop (Marisa). Used by the work
 
 - The caller does not need to catch errors: it checks `enviado` and, if `false`, `motivo`.
 - To be called from another workflow, the sub-workflow must be **published** on that n8n instance.
+
+### Spreadsheet migration (T-012, run once)
+
+The `Migración Excel` workflow loads the layaways, payments and sales from Marisa's sheets ([`data/excel_actual_apartados.csv`](data/excel_actual_apartados.csv) and [`data/excel_actual_ventas.csv`](data/excel_actual_ventas.csv)) into the app, and emails her a report of what was not loaded and why.
+
+**Before running it:**
+
+1. The shop app must be **empty** and its **webhook switched off**. Otherwise every old layaway and sale would trigger its notifications: confirmations to customers, large-sale alert… In `.env` set `SEED=0` and leave `N8N_WEBHOOK_URL=` empty, then:
+
+   ```bash
+   docker compose rm -sf tienda
+   docker volume ls                          # find the volume ending in _tienda_data
+   docker volume rm <folder>_tienda_data     # deletes ONLY the shop data, not n8n's
+   docker compose up -d tienda
+   ```
+
+2. Copy the CSV files into n8n, which cannot see the repository's `data/` folder:
+
+   ```bash
+   docker compose exec n8n mkdir -p /home/node/.n8n-files/migracion
+   docker compose cp data/excel_actual_apartados.csv n8n:/home/node/.n8n-files/migracion/
+   docker compose cp data/excel_actual_ventas.csv n8n:/home/node/.n8n-files/migracion/
+   ```
+
+3. The report is sent through `SUB - Enviar notificación`: import it, publish it and select it in the *Enviar informe a Marisa* node (its ID differs on every instance). Also check that the `Tienda API` and `Correo salida` credentials exist and that `EMAIL_TIENDA` is set: it is the address that receives the report.
+
+**Running it:** open the workflow in n8n and click *Execute workflow*. Running it again does not duplicate anything, because it checks what is already in the app before creating.
+
+**Afterwards:** put back in `.env` the `N8N_WEBHOOK_URL` from `.env.example` and restart the shop (`docker compose up -d tienda`) so notifications reach n8n again.
+
+**What it does with the data:**
+
+| Case | What happens |
+|---|---|
+| Dates `7/9/26`, amounts `15€`, lower-case names | Normalised (`2026-09-07`, `15`, `Carmen Ruiz`) |
+| Several rows for the same customer, model and size | The first is the layaway and the rest its payments, in date order |
+| Down payment under €5 (Lucía Gómez) | Neither the layaway nor its payments are loaded; it goes to the report |
+| Sales that are layaway payments (`abono inicial apartado`, `Abono Ana Torres mocasin`, `(apartado)`) | Not loaded as sales; they give that payment's method |
+| Payments with an unknown method | Loaded as `efectivo` (cash) and flagged in the report as an assumption |
+| `TOTAL SEPTIEMBRE (a mano)` row | Ignored |
+| At the end | Compares each layaway's outstanding amount with the `resta` column, and the totals with the spreadsheet |
+
+With the sample data it loads 7 layaways, 3 later payments and 6 sales: €170.00 in payments and €213.85 in sales, matching the spreadsheet.
 
 ### Repository layout
 

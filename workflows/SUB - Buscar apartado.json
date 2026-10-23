@@ -227,9 +227,10 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner"
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "OusUpH8JpPQsG52u"
   },
-  "versionId": "99e4f9ab-fddc-4713-a480-a249e8b84b9b",
+  "versionId": "d508e988-2ab6-4434-a0b1-56e87e0f7508",
   "meta": {},
   "id": "PewRzSO2LkZ1xm9v",
   "tags": []
