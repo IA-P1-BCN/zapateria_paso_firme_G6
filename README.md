@@ -60,6 +60,7 @@ docker compose up -d        # tienda en :8000, n8n en :5678
 2. Crea las credenciales de la tabla siguiente, **con estos nombres exactos**.
 3. Importa los flujos de [`workflows/`](workflows/) (menú del flujo → *Import from file*).
 4. En los flujos que llaman a un sub-workflow (`SUB - …`), vuelve a elegirlo en el nodo *Execute Workflow*: su identificador interno cambia en cada instancia.
+5. En cada flujo (salvo `08 - Error Workflow` y `SUB - Enviar notificación`), abre *Settings → Error workflow* y elige `08 - Error Workflow`: su identificador también cambia en cada instancia.
 
 Para pararlo: `docker compose down`. Para borrar también los datos: `docker compose down -v`.
 
@@ -229,6 +230,7 @@ docker compose up -d        # shop on :8000, n8n on :5678
 2. Create the credentials in the table below, **with these exact names**.
 3. Import the workflows from [`workflows/`](workflows/) (workflow menu → *Import from file*).
 4. In workflows that call a sub-workflow (`SUB - …`), pick it again in the *Execute Workflow* node: its internal ID differs on every instance.
+5. In every workflow (except `08 - Error Workflow` and `SUB - Enviar notificación`), open *Settings → Error workflow* and pick `08 - Error Workflow`: its ID also differs on every instance.
 
 To stop: `docker compose down`. To also delete the data: `docker compose down -v`.
 

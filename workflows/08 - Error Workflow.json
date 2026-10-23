@@ -1,0 +1,151 @@
+{
+  "name": "08 - Error Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -256,
+        -160
+      ],
+      "id": "18336b7e-c9d4-42be-bd23-8bc4f51f5198",
+      "name": "Recibir error"
+    },
+    {
+      "parameters": {
+        "jsCode": "const datos = $input.first().json;\nconst ejecucion = datos.execution ?? {};\nconst mensajeError = ejecucion.error?.message ?? datos.trigger?.error?.message ?? 'Error desconocido';\n\nconst limpiar = (texto) => String(texto)\n  .replace(/(x-api-key|authorization|api[-_]?key|token|password|contraseña)([\"']?\\s*[:=]\\s*)(Bearer\\s+)?[^\\s,;\"'}]+/gi, '$1$2[oculto]')\n  .replace(/Bearer\\s+[^\\s,;\"'}]+/gi, 'Bearer [oculto]');\n\nconst flujo = datos.workflow?.name ?? 'Flujo desconocido';\nconst nodo = ejecucion.lastNodeExecuted ?? 'Nodo desconocido';\nconst enlace = ejecucion.url ?? 'Sin enlace (el fallo ocurrió en el disparador)';\nconst hora = new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' });\n\nreturn [{\n  json: {\n    destinatario: 'tienda',\n    email: '',\n    asunto: `Fallo en el flujo: ${flujo}`,\n    mensaje: [\n      `El flujo \"${flujo}\" ha fallado.`,\n      `Paso que falló: ${nodo}`,\n      `Error: ${limpiar(mensajeError)}`,\n      `Hora: ${hora}`,\n      `Ejecución: ${enlace}`,\n    ].join('\\n'),\n    contexto: `${flujo} - ${nodo}`,\n  },\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -160
+      ],
+      "id": "474add4b-7e9f-4208-aa6f-dac3eaee1d71",
+      "name": "Preparar aviso"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q6tyyG7CNPz0y5kH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q6tyyG7CNPz0y5kH",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        240,
+        -160
+      ],
+      "id": "91c960a0-d65b-4127-a511-7a719d3f8e59",
+      "name": "Enviar aviso a la tienda"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir error": {
+      "main": [
+        [
+          {
+            "node": "Preparar aviso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar aviso": {
+      "main": [
+        [
+          {
+            "node": "Enviar aviso a la tienda",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a13f9fa5-fe3d-4990-b097-bb952d49e406",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "HHKPnBEBF9SObOSU",
+  "tags": []
+}
