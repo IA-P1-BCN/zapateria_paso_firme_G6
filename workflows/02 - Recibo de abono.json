@@ -1,0 +1,254 @@
+{
+  "name": "02 - Recibo de abono",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        -432,
+        -64
+      ],
+      "name": "Recibir apartado",
+      "id": "40efc880-59be-4579-a74f-5594e172ec3f",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst d = input.datos ?? input.body?.datos ?? input.body ?? input;\n\nconst formatMoney = (value) => {\n  if (value === null || value === undefined || value === '') return '';\n  const n = Number(value);\n  if (!Number.isFinite(n)) return '';\n  return `${n.toLocaleString('es-ES', {\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 2\n  })} €`;\n};\n\nconst formatDate = (value) => {\n  if (!value) return '';\n  const s = String(value).slice(0, 10);\n  const m = s.match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);\n  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;\n};\n\nreturn [{\n  json: {\n    ...d,\n    email: String(d.email ?? '').trim(),\n    esLiquidado: String(d.estado ?? '').trim().toLowerCase() === 'liquidado',\n    destinatario: 'cliente',\n    asunto: `Recibo de abono - apartado ${d.id ?? ''}`.trim(),\n    contexto: `Apartado ${d.id ?? 'sin número'} - ${d.cliente ?? 'cliente'}`,\n    importeFormato: formatMoney(d.importe),\n    precioFormato: formatMoney(d.precio),\n    abonadoFormato: formatMoney(d.abonado),\n    pendienteFormato: formatMoney(d.pendiente),\n    fechaLimiteFormato: formatDate(d.fecha_limite)\n  }\n}];"
+      },
+      "position": [
+        -192,
+        -64
+      ],
+      "name": "Preparar datos y formatos",
+      "id": "cce6c6a0-ae62-43b4-a1ff-d42d5c86f7d0",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true,
+              "id": "a1000001-0000-4000-8000-000000000003",
+              "leftValue": "={{ $json.esLiquidado }}"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "position": [
+        48,
+        -64
+      ],
+      "name": "¿Está liquidado?",
+      "id": "599b7c70-e1f7-4faa-8b32-73068c807ad8",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst mensaje =\n`Hola, ${d.cliente}. Hemos recibido tu último abono de ${d.importeFormato} y tu apartado de ${d.producto}, talla ${d.talla}, ya está pagado por completo.\nYa puedes pasar a recoger tus zapatos.\n¡Gracias por confiar en Paso Firme!`;\n\nreturn [{ json: { ...d, mensaje } }];"
+      },
+      "position": [
+        320,
+        -176
+      ],
+      "name": "Crear mensaje de recogida",
+      "id": "f39b1b47-965c-42c5-bf9f-c5f955f08232",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst mensaje =\n`Hola, ${d.cliente}. Hemos recibido tu abono de ${d.importeFormato} para tu apartado de ${d.producto}, talla ${d.talla}.\nTotal abonado: ${d.abonadoFormato}\nPendiente: ${d.pendienteFormato}\nFecha límite para recogerlo: ${d.fechaLimiteFormato}\n¡Gracias por confiar en Paso Firme!`;\n\nreturn [{ json: { ...d, mensaje } }];"
+      },
+      "position": [
+        320,
+        64
+      ],
+      "name": "Crear confirmación",
+      "id": "b0e14f59-07a3-44df-a9f8-27a2a47a77e2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "3PGPmqbXAHGfMSE2",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3PGPmqbXAHGfMSE2",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "position": [
+        608,
+        -64
+      ],
+      "name": "Enviar notificación",
+      "id": "d405f8ec-181d-40f7-b8c2-395698d3e9e9",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Recibir apartado": {
+      "main": [
+        [
+          {
+            "node": "Preparar datos y formatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar datos y formatos": {
+      "main": [
+        [
+          {
+            "node": "¿Está liquidado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Está liquidado?": {
+      "main": [
+        [
+          {
+            "node": "Crear mensaje de recogida",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear mensaje de recogida": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear confirmación": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "JXAvHoMLeAM2WN6I",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "b900cd5e-e447-42d4-8d02-58b80e4c13cc",
+  "meta": {
+    "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
+  },
+  "nodeGroups": [],
+  "id": "5U4NLhiExPE8UQDI",
+  "tags": []
+}
