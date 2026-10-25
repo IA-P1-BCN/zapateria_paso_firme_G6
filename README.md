@@ -187,6 +187,41 @@ El flujo `Migración Excel` pasa a la app los apartados, abonos y ventas de las 
 
 Con los datos de ejemplo carga 7 apartados, 3 abonos posteriores y 6 ventas: 170,00 € en abonos y 213,85 € en ventas, igual que el Excel.
 
+### Flujo 03 · Abonos por Bizum y transferencia (T-008)
+
+El flujo `03 - Abonos a distancia` lee los avisos del banco que llegan al buzón de la tienda, saca con IA quién paga, cuánto y con qué concepto, y registra el abono en la app solo cuando está claro. Si no lo está, no registra nada y avisa a Marisa.
+
+**Cómo decide:**
+
+1. **Filtro sin IA:** solo sigue un correo con las líneas `Importe` y `Ordenante` del banco. La publicidad, los avisos de los propios flujos y los correos devueltos se ignoran sin llamar al modelo.
+2. **Extracción con IA** (credencial `Modelo IA`, modelo `openai/gpt-oss-20b` de Groq): el modelo solo copia `ordenante`, `importe` y `concepto`. Recibe únicamente el asunto y el texto del correo; los datos de prueba son ficticios.
+3. **Validación en código:** el importe pasa a número (`10,00 EUR` → `10`); si no es positivo, el pago es dudoso.
+4. **Búsqueda** con `SUB - Buscar apartado` (ordenante + concepto).
+5. **Reglas (sin IA):** se registra solo si hay un único apartado activo, el pago trae concepto, está en plazo, no supera lo pendiente y ese apartado no tiene ya hoy un abono del mismo importe (posible duplicado). Si no, se pregunta a Marisa o se le avisa del rechazo, con el motivo y los apartados posibles.
+6. **Registro:** `POST /api/apartados/{id}/abonos` con `forma_pago: bizum`. Las transferencias también se registran como `bizum` (la app no tiene `transferencia`) y Marisa recibe un aviso de que se ha hecho así. La app emite `abono.registrado` y el flujo 02 envía el recibo al cliente.
+
+**Para ponerlo en marcha:**
+
+- Credenciales `Correo entrada`, `Tienda API` y `Modelo IA`. Tras importarlo, elige `SUB - Buscar apartado` y `SUB - Enviar notificación` en sus nodos *Execute Workflow* y `08 - Error Workflow` en *Settings → Error workflow*.
+- **Publícalo en una sola instancia de n8n.** Al publicarlo por primera vez solo procesa los correos que llegan desde ese momento.
+- Para probar sin el buzón: copia los correos a n8n (`docker compose exec n8n mkdir -p /home/node/.n8n-files/correos` y `docker compose cp data/correos/. n8n:/home/node/.n8n-files/correos/`) y pulsa *Execute workflow* desde el disparador *Probar con los correos de ejemplo*.
+
+**Resultados reales con los 9 correos de `data/correos/`** (datos de ejemplo de la app, prueba con el buzón real del 25/10/2026):
+
+| Correo | Datos extraídos | Resultado |
+|---|---|---|
+| 01 Bizum Carmen Ruiz | `CARMEN RUIZ GARCIA` · 10 € · `zuecos` | Registrado en #1 (faltaban 19,50 €, ahora 9,50 €) |
+| 02 Bizum `JORGE M.` | `JORGE M.` · 20 € · `apartado 2 bota` | Registrado en #2 (79 € → 59 €) |
+| 03 Transferencia Lucía Gómez | `LUCIA GOMEZ PEREZ` · 12 € · `Liquidar mocasines` | Registrado en #3, que queda **liquidado**; aviso a Marisa de que consta como bizum |
+| 04 Bizum `LAURA O.` | `LAURA O.` · 15 € · `deportivas` | No registrado: supera lo pendiente (10 €); aviso a Marisa |
+| 05 Bizum `ROMERO D` | `ROMERO D` · 10 € · *(vacío)* | No registrado: sin concepto; aviso a Marisa con #11 como posible |
+| 06 Bizum Paula Ramos | `PAULA RAMOS LEON` · 20 € · `zapatillas running…` | No registrado: fuera de plazo; aviso a Marisa |
+| 07 Transferencia Antonio Fernández | `ANTONIO FERNANDEZ SOTO` · 25 € · `botas` | No registrado: ningún apartado coincide; aviso a Marisa |
+| 08 Publicidad del banco | — (no llega al modelo) | Ignorado |
+| 09 Bizum Silvia Cortés | `SILVIA CORTES` · 5 € · `abono sandalias` | Registrado en #24 |
+
+Al volver a pasar los mismos 9 correos no se registra ningún abono: los que ya estaban registrados se avisan como posible pago duplicado o como fuera de lo pendiente.
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -399,6 +434,41 @@ The `Migración Excel` workflow loads the layaways, payments and sales from Mari
 | At the end | Compares each layaway's outstanding amount with the `resta` column, and the totals with the spreadsheet |
 
 With the sample data it loads 7 layaways, 3 later payments and 6 sales: €170.00 in payments and €213.85 in sales, matching the spreadsheet.
+
+### Workflow 03 · Bizum and bank transfer payments (T-008)
+
+The `03 - Abonos a distancia` workflow reads the bank notifications that reach the shop mailbox, uses AI to extract who pays, how much and the reference, and records the payment in the app only when it is clear. Otherwise it records nothing and alerts Marisa.
+
+**How it decides:**
+
+1. **Filter without AI:** only emails with the bank's `Importe` and `Ordenante` lines go on. Adverts, the workflows' own alerts and bounced emails are ignored without calling the model.
+2. **AI extraction** (`Modelo IA` credential, Groq model `openai/gpt-oss-20b`): the model only copies `ordenante`, `importe` and `concepto`. It receives just the subject and body of the email; test data is fictitious.
+3. **Validation in code:** the amount becomes a number (`10,00 EUR` → `10`); if it is not positive, the payment is doubtful.
+4. **Lookup** with `SUB - Buscar apartado` (payer + reference).
+5. **Rules (no AI):** it records only if there is a single active layaway, the payment has a reference, it is within the deadline, it does not exceed the outstanding amount and that layaway has no payment of the same amount today yet (possible duplicate). Otherwise Marisa is asked, or told about the rejection, with the reason and the possible layaways.
+6. **Recording:** `POST /api/apartados/{id}/abonos` with `forma_pago: bizum`. Transfers are also recorded as `bizum` (the app has no `transferencia`) and Marisa is told so. The app emits `abono.registrado` and workflow 02 sends the customer their receipt.
+
+**To run it:**
+
+- Credentials `Correo entrada`, `Tienda API` and `Modelo IA`. After importing, select `SUB - Buscar apartado` and `SUB - Enviar notificación` in their *Execute Workflow* nodes and `08 - Error Workflow` in *Settings → Error workflow*.
+- **Publish it on a single n8n instance only.** When first published it only processes emails that arrive from then on.
+- To test without the mailbox: copy the emails into n8n (`docker compose exec n8n mkdir -p /home/node/.n8n-files/correos` and `docker compose cp data/correos/. n8n:/home/node/.n8n-files/correos/`) and click *Execute workflow* from the *Probar con los correos de ejemplo* trigger.
+
+**Actual results with the 9 emails in `data/correos/`** (the app's sample data, real mailbox test on 25/10/2026):
+
+| Email | Extracted data | Result |
+|---|---|---|
+| 01 Bizum Carmen Ruiz | `CARMEN RUIZ GARCIA` · €10 · `zuecos` | Recorded on #1 (€19.50 outstanding, now €9.50) |
+| 02 Bizum `JORGE M.` | `JORGE M.` · €20 · `apartado 2 bota` | Recorded on #2 (€79 → €59) |
+| 03 Transfer Lucía Gómez | `LUCIA GOMEZ PEREZ` · €12 · `Liquidar mocasines` | Recorded on #3, now **paid off**; Marisa told it is recorded as bizum |
+| 04 Bizum `LAURA O.` | `LAURA O.` · €15 · `deportivas` | Not recorded: exceeds the outstanding €10; Marisa alerted |
+| 05 Bizum `ROMERO D` | `ROMERO D` · €10 · *(empty)* | Not recorded: no reference; Marisa alerted with #11 as possible |
+| 06 Bizum Paula Ramos | `PAULA RAMOS LEON` · €20 · `zapatillas running…` | Not recorded: past the deadline; Marisa alerted |
+| 07 Transfer Antonio Fernández | `ANTONIO FERNANDEZ SOTO` · €25 · `botas` | Not recorded: no layaway matches; Marisa alerted |
+| 08 Bank advert | — (never reaches the model) | Ignored |
+| 09 Bizum Silvia Cortés | `SILVIA CORTES` · €5 · `abono sandalias` | Recorded on #24 |
+
+Running the same 9 emails again records no payment: the ones already recorded are reported as a possible duplicate or as exceeding the outstanding amount.
 
 ### Repository layout
 

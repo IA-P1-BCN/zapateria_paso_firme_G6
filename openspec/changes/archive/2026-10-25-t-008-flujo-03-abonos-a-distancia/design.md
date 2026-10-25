@@ -4,8 +4,10 @@
 3. **El importe se valida en código:** `10,00 EUR` → `10`. Si no es un número positivo, el pago es dudoso.
 4. **Dos formatos de correo:** Bizum (`Importe: 10,00 EUR`) y transferencia (`Importe .......... 12,00 EUR`). El mismo prompt debe extraer ambos.
 5. **Sin duplicados:** cada correo se procesa una vez (se marca como leído y se guarda el `Message-ID`).
+   - **Cómo queda (2026-10-25, Anna):** el disparador IMAP marca cada correo como leído y recuerda el último que ha visto, así que no lee dos veces el mismo correo. Guardar los `Message-ID` en un nodo Code no funciona en n8n 2.x (los datos estáticos del nodo Code no se conservan entre ejecuciones), así que en su lugar, antes de registrar, se mira si ese apartado ya tiene hoy un abono del mismo importe, en la app o antes en el mismo lote: si lo tiene, no se registra y se pregunta a Marisa (posible pago duplicado). Esto cubre también que el banco avise dos veces del mismo pago.
 6. **Errores de la app:** si `POST /abonos` devuelve 422, se avisa a Marisa con el motivo. `detail` puede ser texto o lista: se tratan los dos.
 7. **DECISIÓN ABIERTA:** la app solo acepta `efectivo`, `tarjeta` y `bizum`; no existe `transferencia`. Propuesta: registrar las transferencias como `bizum` (pago a distancia) y decirlo en el aviso; alternativa: pedir a Marisa. A decidir antes de construir.
+   - **Decidido (2026-10-23, Anna):** las transferencias se registran como `bizum` y el flujo avisa a Marisa de que esa transferencia se ha registrado así.
 
 ## Los 9 correos de `data/correos/` y qué debe pasar con cada uno
 Según el briefing; los correos están pensados para los apartados de ejemplo de la app.

@@ -1,4 +1,9 @@
-## ADDED Requirements
+# abonos-a-distancia Specification
+
+## Purpose
+El flujo `03 - Abonos a distancia` lee los avisos del banco (Bizum y transferencia) que llegan al buzón de la tienda, extrae con IA solo el ordenante, el importe y el concepto, y registra el abono en la app únicamente cuando las reglas lo dejan claro; en cualquier otro caso no registra nada y avisa a Marisa con el motivo. Flujo: `workflows/03 - Abonos a distancia.json`; resultados con los correos de ejemplo, en el README.
+
+## Requirements
 
 ### Requirement: Descartar lo que no es un pago
 El flujo SHALL ignorar los correos que no contienen un importe y un ordenante.
@@ -71,3 +76,11 @@ El flujo SHALL NOT procesar dos veces el mismo correo.
 #### Scenario: Reejecución
 - **WHEN** el flujo se ejecuta otra vez con el mismo correo en el buzón
 - **THEN** no se crea un segundo abono
+
+### Requirement: Posible pago duplicado
+El flujo SHALL NOT registrar un abono si ese apartado ya tiene un abono del mismo importe en el mismo día, en la app o antes en el mismo lote de correos, y SHALL preguntar a Marisa.
+
+#### Scenario: El banco avisa dos veces del mismo pago
+- **WHEN** llegan dos correos con el mismo ordenante, importe y concepto para el mismo apartado
+- **THEN** se registra el primero
+- **AND** el segundo no se registra y Marisa recibe un aviso de posible pago duplicado
