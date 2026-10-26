@@ -1,0 +1,474 @@
+{
+  "name": "05 - Cierre diario",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5d9071ae-1ae8-4ebe-b319-eee396609f3a",
+      "name": "Cada noche 22:00"
+    },
+    {
+      "parameters": {
+        "jsCode": "   const hoy = $now.setZone('Europe/Madrid').toFormat('yyyy-MM-dd');\n   return [{ json: { hoy } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "66aa01f6-516c-4eba-8006-7227995c0624",
+      "name": "Calcular hoy"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/ventas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $json.hoy }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $json.hoy }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "cceddf32-30c0-41e4-a7f5-9e03a1af26f6",
+      "name": "Ventas de hoy",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jdjCZLP8atMe7mDV",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/abonos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Calcular hoy').first().json.hoy }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Calcular hoy').first().json.hoy }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "01b5ee82-0cad-4559-b6c6-5062e65858ab",
+      "name": "Abonos de hoy",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "jdjCZLP8atMe7mDV",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const hoy = $('Calcular hoy').first().json.hoy;\nconst ventas = $('Ventas de hoy').all();\nconst abonos = $('Abonos de hoy').all();\nconst formas = ['efectivo', 'tarjeta', 'bizum'];\n\nconst sumar = (items) => {\n  const t = { efectivo: 0, tarjeta: 0, bizum: 0 };\n  let n = 0;\n  for (const it of items) {\n    const r = it.json;\n    if (r.importe === undefined || r.importe === null) continue;\n    const forma = String(r.forma_pago ?? '').trim().toLowerCase();\n    if (!formas.includes(forma)) {\n      throw new Error(`Forma de pago desconocida: ${r.forma_pago}`);\n    }\n    t[forma] += Math.round(Number(r.importe) * 100);\n    n++;\n  }\n  return { t, n };\n};\n\nconst v = sumar(ventas);\nconst a = sumar(abonos);\n\nconst total = {};\nfor (const f of formas) total[f] = v.t[f] + a.t[f];\n\nconst suma = (o) => formas.reduce((s, f) => s + o[f], 0);\nconst fmt = (c) =>\n  `${(c / 100).toLocaleString('es-ES', {\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 2\n  })} €`;\n\nconst bloque = (titulo, o) =>\n  `${titulo}\\n` +\n  `  Efectivo: ${fmt(o.efectivo)}\\n` +\n  `  Tarjeta: ${fmt(o.tarjeta)}\\n` +\n  `  Bizum: ${fmt(o.bizum)}\\n` +\n  `  Total: ${fmt(suma(o))}`;\n\nconst hayMovimientos = v.n + a.n > 0;\nconst fechaFormato = hoy.split('-').reverse().join('/');\n\nconst mensaje = hayMovimientos\n  ? `Cierre del ${fechaFormato}\\n\\n` +\n    bloque('Ventas directas', v.t) + '\\n\\n' +\n    bloque('Abonos de apartados', a.t) + '\\n\\n' +\n    bloque('Total del día', total)\n  : `Cierre del ${fechaFormato}\\n\\nHoy no hubo movimientos.`;\n\nreturn [{\n  json: {\n    fecha: hoy,\n    hayMovimientos,\n    ventas_efectivo: v.t.efectivo / 100,\n    ventas_tarjeta: v.t.tarjeta / 100,\n    ventas_bizum: v.t.bizum / 100,\n    ventas_total: suma(v.t) / 100,\n    abonos_efectivo: a.t.efectivo / 100,\n    abonos_tarjeta: a.t.tarjeta / 100,\n    abonos_bizum: a.t.bizum / 100,\n    abonos_total: suma(a.t) / 100,\n    total_efectivo: total.efectivo / 100,\n    total_tarjeta: total.tarjeta / 100,\n    total_bizum: total.bizum / 100,\n    total: suma(total) / 100,\n    destinatario: 'tienda',\n    email: '',\n    asunto: `Cierre diario ${fechaFormato}`,\n    contexto: `Cierre diario ${hoy}`,\n    mensaje\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        0
+      ],
+      "id": "cbe0d61e-bd0b-49ca-94a6-941c75615435",
+      "name": "Sumar en céntimos"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "rTHczyN50T23KUz0",
+          "mode": "list",
+          "cachedResultName": "cierres_diarios",
+          "cachedResultUrl": "/projects/NedbTeW9eN52FPvf/datatables/rTHczyN50T23KUz0"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "fecha",
+              "keyValue": "={{ $json.fecha }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.fecha }}",
+            "ventas_efectivo": "={{ $json.ventas_efectivo }}",
+            "ventas_tarjeta": "={{ $json.ventas_tarjeta }}",
+            "ventas_bizum": "={{ $json.ventas_bizum }}",
+            "ventas_total": "={{ $json.ventas_total }}",
+            "abonos_efectivo": "={{ $json.abonos_efectivo }}",
+            "abonos_tarjeta": "={{ $json.abonos_tarjeta }}",
+            "abonos_bizum": "={{ $json.abonos_bizum }}",
+            "abonos_total": "={{ $json.abonos_total }}",
+            "total_efectivo": "={{ $json.total_efectivo }}",
+            "total_tarjeta": "={{ $json.total_tarjeta }}",
+            "total_bizum": "={{ $json.total_bizum }}",
+            "total": "={{ $json.total }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ventas_efectivo",
+              "displayName": "ventas_efectivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ventas_tarjeta",
+              "displayName": "ventas_tarjeta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ventas_bizum",
+              "displayName": "ventas_bizum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ventas_total",
+              "displayName": "ventas_total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "abonos_efectivo",
+              "displayName": "abonos_efectivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "abonos_tarjeta",
+              "displayName": "abonos_tarjeta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "abonos_bizum",
+              "displayName": "abonos_bizum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "abonos_total",
+              "displayName": "abonos_total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "total_efectivo",
+              "displayName": "total_efectivo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "total_tarjeta",
+              "displayName": "total_tarjeta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "total_bizum",
+              "displayName": "total_bizum",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "fcd56e4a-4eaa-47cf-90c8-de17cb4e4c63",
+      "name": "Guardar cierre"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "3PGPmqbXAHGfMSE2",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/3PGPmqbXAHGfMSE2",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "tienda",
+            "asunto": "={{ $('Sumar en céntimos').first().json.asunto }}",
+            "mensaje": "={{ $('Sumar en céntimos').first().json.mensaje }}",
+            "contexto": "={{ $('Sumar en céntimos').first().json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "c2a6a1df-1de7-4327-be06-95a84eb0ddb5",
+      "name": "Enviar cierre"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada noche 22:00": {
+      "main": [
+        [
+          {
+            "node": "Calcular hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular hoy": {
+      "main": [
+        [
+          {
+            "node": "Ventas de hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventas de hoy": {
+      "main": [
+        [
+          {
+            "node": "Abonos de hoy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abonos de hoy": {
+      "main": [
+        [
+          {
+            "node": "Sumar en céntimos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sumar en céntimos": {
+      "main": [
+        [
+          {
+            "node": "Guardar cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar cierre": {
+      "main": [
+        [
+          {
+            "node": "Enviar cierre",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "JXAvHoMLeAM2WN6I",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "30aaeff4-5db6-4e54-831f-eb8f50dd7309",
+  "meta": {
+    "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
+  },
+  "nodeGroups": [],
+  "id": "LR1U9xeVDOAgGPhI",
+  "tags": []
+}
