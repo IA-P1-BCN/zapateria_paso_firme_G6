@@ -1,0 +1,357 @@
+{
+  "name": "07 - Informe mensual",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e9751d5d-5144-4021-83bc-dbd4eb31c5a4",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9321e53b-d54a-435b-9101-cc0745c7f70e",
+              "name": "desde",
+              "value": "={{ $now.setZone('Europe/Madrid').minus({ months: 1 }).startOf('month').toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "5f1fb42c-f55c-441d-826d-7d20132d4398",
+              "name": "hasta",
+              "value": "={{ $now.setZone('Europe/Madrid').minus({ months: 1 }).endOf('month').toFormat('yyyy-MM-dd') }}",
+              "type": "string"
+            },
+            {
+              "id": "10fbedbf-8730-4df3-9bdb-14c592ada0a9",
+              "name": "mes",
+              "value": "={{ $now.setZone('Europe/Madrid').minus({ months: 1 }).setLocale('es').toFormat('LLLL yyyy') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "df228f3a-cfa2-4086-bcfc-54f64c3694c9",
+      "name": "Calcular mes anterior"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/ventas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Calcular mes anterior').first().json.desde }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Calcular mes anterior').first().json.hasta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7680f203-6e8d-448a-8c69-03736345f4f5",
+      "name": "Ventas del mes",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/abonos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ],
+      "id": "ad151d81-5dca-4996-99b8-9fdbe201f241",
+      "name": "Abonos",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/apartados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        0
+      ],
+      "id": "4fa02ee4-492d-4c39-ba04-3fec128575e7",
+      "name": "Apartados",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/vales",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1152,
+        -16
+      ],
+      "id": "82e7bbd2-01ca-4240-ba4a-5192e4179cf5",
+      "name": "Vales",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const { desde, hasta, mes } = $('Calcular mes anterior').first().json;\nconst filas = (nombre) => $(nombre).all().map((i) => i.json).filter((r) => r.id !== undefined);\nconst ventas = filas('Ventas del mes');\nconst abonosTodos = filas('Abonos');\nconst apartados = filas('Apartados');\nconst vales = filas('Vales');\n\nconst enMes = (f) => f >= desde && f <= hasta;\nconst cent = (x) => Math.round(Number(x) * 100);\nconst total = (rows) => rows.reduce((s, r) => s + cent(r.importe), 0);\n\nconst abonosMes = abonosTodos.filter((a) => enMes(a.fecha));\nconst ventasC = total(ventas);\nconst abonosC = total(abonosMes);\n\nconst pendienteC = apartados\n  .filter((a) => a.estado === 'activo')\n  .reduce((s, a) => s + cent(a.pendiente), 0);\nconst nuevos = apartados.filter((a) => enMes(a.fecha)).length;\n\n// La app no guarda cuándo se liquidó: se usa la fecha de su último abono.\nconst ultimoAbono = {};\nfor (const a of abonosTodos) {\n  if (!ultimoAbono[a.apartado_id] || a.fecha > ultimoAbono[a.apartado_id]) {\n    ultimoAbono[a.apartado_id] = a.fecha;\n  }\n}\nconst liquidados = apartados.filter(\n  (a) => a.estado === 'liquidado' && ultimoAbono[a.id] && enMes(ultimoAbono[a.id])\n).length;\nconst vencidos = vales.filter((v) => enMes(v.fecha)).length;\n\nconst fmt = (c) =>\n  `${(c / 100).toLocaleString('es-ES', {\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 2\n  })} €`;\n\nconst mensaje =\n  `Informe de ${mes}\\n\\n` +\n  `Cobrado en el mes\\n` +\n  `  Ventas: ${fmt(ventasC)}\\n` +\n  `  Abonos: ${fmt(abonosC)}\\n` +\n  `  Total: ${fmt(ventasC + abonosC)}\\n\\n` +\n  `Pendiente de cobrar en apartados activos: ${fmt(pendienteC)}\\n\\n` +\n  `Apartados del mes\\n` +\n  `  Nuevos: ${nuevos}\\n` +\n  `  Liquidados: ${liquidados}\\n` +\n  `  Vencidos: ${vencidos}`;\n\nreturn [{\n  json: {\n    desde, hasta, mes,\n    ventas: ventasC / 100,\n    abonos: abonosC / 100,\n    total: (ventasC + abonosC) / 100,\n    pendiente_total: pendienteC / 100,\n    nuevos, liquidados, vencidos,\n    destinatario: 'tienda',\n    asunto: `Informe mensual ${mes}`,\n    contexto: `Informe mensual ${desde}`,\n    mensaje\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        -16
+      ],
+      "id": "f8ebcf8c-0dc8-4eeb-acdc-5d3702c5cbe1",
+      "name": "Sumar en céntimos"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "q6tyyG7CNPz0y5kH",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/q6tyyG7CNPz0y5kH",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "tienda",
+            "asunto": "={{ $('Sumar en céntimos').first().json.asunto }}",
+            "mensaje": "={{ $('Sumar en céntimos').first().json.mensaje }}",
+            "contexto": "={{ $('Sumar en céntimos').first().json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        1600,
+        -16
+      ],
+      "id": "75bf56b5-c71b-4d40-9d1c-b1ac2a399b4b",
+      "name": "Enviar informe"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Calcular mes anterior",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular mes anterior": {
+      "main": [
+        [
+          {
+            "node": "Ventas del mes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventas del mes": {
+      "main": [
+        [
+          {
+            "node": "Abonos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abonos": {
+      "main": [
+        [
+          {
+            "node": "Apartados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartados": {
+      "main": [
+        [
+          {
+            "node": "Vales",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vales": {
+      "main": [
+        [
+          {
+            "node": "Sumar en céntimos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sumar en céntimos": {
+      "main": [
+        [
+          {
+            "node": "Enviar informe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HHKPnBEBF9SObOSU",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "6a4d24ab-0487-4b36-b28a-caafc8e88ca7",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "adhcZlmvvEI7tMLY",
+  "tags": []
+}
