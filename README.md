@@ -194,7 +194,7 @@ El flujo `03 - Abonos a distancia` lee los avisos del banco que llegan al buzón
 **Cómo decide:**
 
 1. **Filtro sin IA:** solo sigue un correo con las líneas `Importe` y `Ordenante` del banco. La publicidad, los avisos de los propios flujos y los correos devueltos se ignoran sin llamar al modelo.
-2. **Extracción con IA** (credencial `Modelo IA`, modelo `openai/gpt-oss-20b` de Groq): el modelo solo copia `ordenante`, `importe` y `concepto`. Recibe únicamente el asunto y el texto del correo; los datos de prueba son ficticios.
+2. **Extracción con IA** (credencial `Modelo IA`, modelo `qwen/qwen3.8-27b` de Groq, elegido en T-013): el modelo solo copia `ordenante`, `importe` y `concepto`. Recibe únicamente el asunto y el texto del correo; los datos de prueba son ficticios.
 3. **Validación en código:** el importe pasa a número (`10,00 EUR` → `10`); si no es positivo, el pago es dudoso.
 4. **Búsqueda** con `SUB - Buscar apartado` (ordenante + concepto).
 5. **Reglas (sin IA):** se registra solo si hay un único apartado activo, el pago trae concepto, está en plazo, no supera lo pendiente y ese apartado no tiene ya hoy un abono del mismo importe (posible duplicado). Si no, se pregunta a Marisa o se le avisa del rechazo, con el motivo y los apartados posibles.
@@ -221,6 +221,65 @@ El flujo `03 - Abonos a distancia` lee los avisos del banco que llegan al buzón
 | 09 Bizum Silvia Cortés | `SILVIA CORTES` · 5 € · `abono sandalias` | Registrado en #24 |
 
 Al volver a pasar los mismos 9 correos no se registra ningún abono: los que ya estaban registrados se avisan como posible pago duplicado o como fuera de lo pendiente.
+
+### Comparativa de modelos de IA (T-013)
+
+Para el flujo 03 se compararon dos modelos gratuitos de Groq en la misma tarea: sacar `ordenante`, `importe` y `concepto` de los avisos del banco.
+
+**Cómo se hizo:**
+
+- **Misma entrada para los dos:** el prompt de T-008 y los 9 correos de `data/correos/`, también la publicidad, para ver si el modelo se inventa datos. Temperatura 0.
+- **Tres vueltas:** 27 respuestas por modelo.
+- **Acierto:** cada campo se compara con lo que dice el correo; el importe, ya convertido a número.
+- **JSON válido:** la respuesta entera es un objeto JSON, sin texto ni bloques de código alrededor.
+- **Tiempo:** el que devuelve Groq para cada petición (`total_time`).
+- **Datos enviados:** solo las instrucciones y el asunto y el texto del correo, unos 300-350 tokens por petición. No se envían remitente, cabeceras ni ningún dato de la tienda, y los correos de prueba son ficticios.
+
+  <details><summary>Instrucciones exactas (mensaje de sistema, el mismo que usa el flujo 03)</summary>
+
+  ```text
+  Eres un extractor de datos. Lees un aviso de un banco sobre un pago recibido (Bizum o transferencia) y devuelves SOLO un objeto JSON, sin explicaciones ni bloques de código, con estos tres campos de texto:
+  - "ordenante": lo que aparece en la línea "Ordenante", copiado tal cual.
+  - "importe": lo que aparece en la línea "Importe", copiado tal cual (por ejemplo "10,00 EUR").
+  - "concepto": lo que aparece en la línea "Concepto", copiado tal cual. Si esa línea está vacía o no existe, devuelve "".
+  Reglas: no inventes ni completes datos, no corrijas nombres, no uses el texto de otras líneas para rellenar un campo. Si un dato no aparece, devuelve "".
+  Ejemplo de respuesta: {"ordenante": "ANA PEREZ", "importe": "15,00 EUR", "concepto": "botas"}
+  ```
+
+  </details>
+  <details><summary>Mensaje exacto del usuario, ejemplo con el correo 01</summary>
+
+  ```text
+  Asunto: Has recibido un Bizum de 10,00 €
+
+  Hola, ZAPATERIA PASO FIRME:
+
+  Has recibido un Bizum.
+
+  Importe: 10,00 EUR
+  Ordenante: CARMEN RUIZ GARCIA
+  Concepto: zuecos
+
+  El importe ya está disponible en tu cuenta terminada en 4821.
+
+  Banco Ejemplo
+  ```
+
+  </details>
+
+- **Para repetirla:** importa `workflows/Comparativa de modelos.json`, copia los correos a n8n (como en el flujo 03) y pulsa *Execute workflow*. Usa la credencial `Modelo IA`.
+
+| Métrica | `openai/gpt-oss-20b` | `qwen/qwen3.8-27b` |
+|---|---|---|
+| Campos correctos | 81/81 | 81/81 |
+| Correos con los tres campos bien | 27/27 | 27/27 |
+| JSON válido | 27/27 | 27/27 |
+| Publicidad sin datos inventados | 3/3 | 3/3 |
+| Misma respuesta en las tres vueltas | 9/9 correos | 9/9 correos |
+| Tiempo de respuesta: media / mediana / máximo | 0,175 / 0,153 / 0,337 s | 0,098 / 0,096 / 0,206 s |
+| Tokens de respuesta (media) | 134 | 32 |
+
+**Modelo elegido: `qwen/qwen3.8-27b`.** Los dos aciertan todo, así que la diferencia está en el coste. Qwen tarda casi la mitad y gasta unas 4 veces menos tokens de respuesta (`gpt-oss` razona antes de contestar), lo que deja más margen en los límites de la capa gratuita de Groq y menos riesgo de que la respuesta se corte. La muestra es pequeña (9 correos) y los dos lo hacen bien; no es una diferencia de calidad. El flujo 03 usa ya este modelo y da los mismos resultados con los 9 correos.
 
 ### Estructura del repositorio
 
@@ -442,7 +501,7 @@ The `03 - Abonos a distancia` workflow reads the bank notifications that reach t
 **How it decides:**
 
 1. **Filter without AI:** only emails with the bank's `Importe` and `Ordenante` lines go on. Adverts, the workflows' own alerts and bounced emails are ignored without calling the model.
-2. **AI extraction** (`Modelo IA` credential, Groq model `openai/gpt-oss-20b`): the model only copies `ordenante`, `importe` and `concepto`. It receives just the subject and body of the email; test data is fictitious.
+2. **AI extraction** (`Modelo IA` credential, Groq model `qwen/qwen3.8-27b`, chosen in T-013): the model only copies `ordenante`, `importe` and `concepto`. It receives just the subject and body of the email; test data is fictitious.
 3. **Validation in code:** the amount becomes a number (`10,00 EUR` → `10`); if it is not positive, the payment is doubtful.
 4. **Lookup** with `SUB - Buscar apartado` (payer + reference).
 5. **Rules (no AI):** it records only if there is a single active layaway, the payment has a reference, it is within the deadline, it does not exceed the outstanding amount and that layaway has no payment of the same amount today yet (possible duplicate). Otherwise Marisa is asked, or told about the rejection, with the reason and the possible layaways.
@@ -469,6 +528,65 @@ The `03 - Abonos a distancia` workflow reads the bank notifications that reach t
 | 09 Bizum Silvia Cortés | `SILVIA CORTES` · €5 · `abono sandalias` | Recorded on #24 |
 
 Running the same 9 emails again records no payment: the ones already recorded are reported as a possible duplicate or as exceeding the outstanding amount.
+
+### AI model comparison (T-013)
+
+For workflow 03, two free Groq models were compared on the same task: extracting `ordenante`, `importe` and `concepto` from the bank notifications.
+
+**How it was done:**
+
+- **Same input for both:** the T-008 prompt and the 9 emails in `data/correos/`, including the advert, to see whether the model makes data up. Temperature 0.
+- **Three rounds:** 27 answers per model.
+- **Accuracy:** each field is compared with what the email says; the amount after converting it to a number.
+- **Valid JSON:** the whole answer is a JSON object, with no text or code fences around it.
+- **Time:** the one Groq reports for each request (`total_time`).
+- **Data sent:** only the instructions plus the email subject and body, about 300-350 tokens per request. No sender, headers or shop data are sent, and the test emails are fictitious.
+
+  <details><summary>Exact instructions (system message, the same one workflow 03 uses)</summary>
+
+  ```text
+  Eres un extractor de datos. Lees un aviso de un banco sobre un pago recibido (Bizum o transferencia) y devuelves SOLO un objeto JSON, sin explicaciones ni bloques de código, con estos tres campos de texto:
+  - "ordenante": lo que aparece en la línea "Ordenante", copiado tal cual.
+  - "importe": lo que aparece en la línea "Importe", copiado tal cual (por ejemplo "10,00 EUR").
+  - "concepto": lo que aparece en la línea "Concepto", copiado tal cual. Si esa línea está vacía o no existe, devuelve "".
+  Reglas: no inventes ni completes datos, no corrijas nombres, no uses el texto de otras líneas para rellenar un campo. Si un dato no aparece, devuelve "".
+  Ejemplo de respuesta: {"ordenante": "ANA PEREZ", "importe": "15,00 EUR", "concepto": "botas"}
+  ```
+
+  </details>
+  <details><summary>Exact user message, example with email 01</summary>
+
+  ```text
+  Asunto: Has recibido un Bizum de 10,00 €
+
+  Hola, ZAPATERIA PASO FIRME:
+
+  Has recibido un Bizum.
+
+  Importe: 10,00 EUR
+  Ordenante: CARMEN RUIZ GARCIA
+  Concepto: zuecos
+
+  El importe ya está disponible en tu cuenta terminada en 4821.
+
+  Banco Ejemplo
+  ```
+
+  </details>
+
+- **To repeat it:** import `workflows/Comparativa de modelos.json`, copy the emails into n8n (as for workflow 03) and click *Execute workflow*. It uses the `Modelo IA` credential.
+
+| Metric | `openai/gpt-oss-20b` | `qwen/qwen3.8-27b` |
+|---|---|---|
+| Correct fields | 81/81 | 81/81 |
+| Emails with all three fields right | 27/27 | 27/27 |
+| Valid JSON | 27/27 | 27/27 |
+| Advert with no made-up data | 3/3 | 3/3 |
+| Same answer in all three rounds | 9/9 emails | 9/9 emails |
+| Response time: mean / median / max | 0.175 / 0.153 / 0.337 s | 0.098 / 0.096 / 0.206 s |
+| Answer tokens (mean) | 134 | 32 |
+
+**Chosen model: `qwen/qwen3.8-27b`.** Both get everything right, so the difference is cost. Qwen takes about half the time and uses roughly 4 times fewer answer tokens (`gpt-oss` reasons before answering), which leaves more room within Groq's free-tier limits and less risk of a cut-off answer. The sample is small (9 emails) and both do well; this is not a quality difference. Workflow 03 now uses this model and gives the same results with the 9 emails.
 
 ### Repository layout
 
