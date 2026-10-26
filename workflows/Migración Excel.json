@@ -181,7 +181,7 @@
     },
     {
       "id": "b2c0d4e6-0000-4000-8000-000000000010",
-      "name": "Apartados a crear",
+      "name": "Cuadrar con la app",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -189,17 +189,31 @@
         0
       ],
       "parameters": {
-        "jsCode": "const clave = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\nconst claveApartado = a => [clave(a.cliente), clave(a.producto), a.fecha].join('|');\n\n// Idempotente: un apartado ya existe si coinciden cliente, producto y fecha.\nconst plan = $('Preparar migración').first().json;\nconst enApp = new Set(filas('Apartados en la app').map(claveApartado));\nconst nuevos = plan.apartados.filter(a => !enApp.has(claveApartado(a)));\nif (nuevos.length === 0) return [{ json: { vacio: true } }];\nreturn nuevos.map(a => ({ json: {\n  clave: claveApartado(a), descripcion: a.descripcion,\n  body: { cliente: a.cliente, telefono: a.telefono, producto: a.producto, talla: a.talla, precio: a.precio,\n          abono_inicial: a.pagos[0].importe, forma_pago: a.pagos[0].forma_pago, fecha: a.fecha },\n} }));"
+        "jsCode": "const clave = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\n// Un apartado del Excel ya está en la app si coinciden cliente, producto y fecha.\nconst claveApartado = a => [clave(a.cliente), clave(a.producto), a.fecha].join('|');\n\nconst plan = $('Preparar migración').first().json;\nconst enApp = new Map(filas('Apartados en la app').map(a => [claveApartado(a), a.id]));\nconst abonosApp = filas('Abonos en la app');\nconst ventasApp = filas('Ventas en la app');\n\n// De un apartado nuevo faltan los pagos posteriores al inicial; de uno que ya estaba,\n// los pagos que no tienen ya un abono con la misma fecha e importe.\nconst apartados = plan.apartados.map(a => {\n  const id = enApp.get(claveApartado(a)) ?? null;\n  const pagosQueFaltan = id === null ? a.pagos.slice(1) : a.pagos.filter(p => {\n    const i = abonosApp.findIndex(x => x.apartado_id === id && x.fecha === p.fecha && x.importe === p.importe);\n    if (i === -1) return true;\n    abonosApp.splice(i, 1);\n    return false;\n  });\n  return { clave: claveApartado(a), id, cliente: a.cliente, descripcion: a.descripcion, resta_excel: a.resta_excel, pagosQueFaltan,\n    body: { cliente: a.cliente, telefono: a.telefono, producto: a.producto, talla: a.talla, precio: a.precio,\n            abono_inicial: a.pagos[0].importe, forma_pago: a.pagos[0].forma_pago, fecha: a.fecha } };\n});\n\n// Una venta ya existe si coinciden fecha, concepto e importe.\nconst ventasNuevas = plan.ventas.filter(v => {\n  const i = ventasApp.findIndex(x => x.fecha === v.fecha && clave(x.concepto) === clave(v.concepto) && x.importe === v.importe);\n  if (i === -1) return true;\n  ventasApp.splice(i, 1);\n  return false;\n}).map(v => ({ descripcion: `${v.fecha} · ${v.concepto} · ${v.importe} €`,\n  body: { concepto: v.concepto, importe: v.importe, forma_pago: v.forma_pago, fecha: v.fecha } }));\n\nreturn [{ json: { apartados, ventasNuevas } }];"
       },
       "executeOnce": true
     },
     {
       "id": "b2c0d4e6-0000-4000-8000-000000000011",
+      "name": "Apartados a crear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Los apartados que \"Cuadrar con la app\" no ha encontrado en la app.\nconst { apartados } = $('Cuadrar con la app').first().json;\nconst nuevos = apartados.filter(a => a.id === null);\nif (nuevos.length === 0) return [{ json: { vacio: true } }];\nreturn nuevos.map(a => ({ json: { clave: a.clave, descripcion: a.descripcion, body: a.body } }));"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "b2c0d4e6-0000-4000-8000-000000000012",
       "name": "¿Hay apartados nuevos?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2200,
+        2420,
         0
       ],
       "parameters": {
@@ -212,7 +226,7 @@
           },
           "conditions": [
             {
-              "id": "c1d2e3f4-0000-4000-8000-000000000011",
+              "id": "c1d2e3f4-0000-4000-8000-000000000012",
               "leftValue": "={{ $json.vacio !== true }}",
               "rightValue": "",
               "operator": {
@@ -228,7 +242,7 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000012",
+      "id": "b2c0d4e6-0000-4000-8000-000000000013",
       "name": "Crear apartado",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -267,8 +281,8 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000013",
-      "name": "Abonos a cargar",
+      "id": "b2c0d4e6-0000-4000-8000-000000000014",
+      "name": "Ids de los apartados",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -276,17 +290,31 @@
         300
       ],
       "parameters": {
-        "jsCode": "const clave = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\nconst claveApartado = a => [clave(a.cliente), clave(a.producto), a.fecha].join('|');\n\nconst plan = $('Preparar migración').first().json;\nconst ids = new Map(filas('Apartados en la app').map(a => [claveApartado(a), a.id]));\nconst recienCreados = new Set();\nif ($('Crear apartado').isExecuted) {\n  const pedidos = $('Apartados a crear').all();\n  $('Crear apartado').all().forEach((it, i) => {\n    const r = it.json;\n    if (r.statusCode === 201) { ids.set(pedidos[i].json.clave, r.body.id); recienCreados.add(pedidos[i].json.clave); }\n    else if (r.statusCode !== 422) throw new Error(`La tienda respondió ${r.statusCode} al crear un apartado: ${JSON.stringify(r.body)}`);\n  });\n}\n\n// Idempotente: de un apartado que ya estaba solo faltan los pagos que no tienen ya un abono con la misma fecha e importe.\nconst abonosApp = filas('Abonos en la app');\nconst salida = [];\nfor (const a of plan.apartados) {\n  const k = claveApartado(a);\n  const id = ids.get(k);\n  if (id === undefined) continue; // la app rechazó el apartado: va al informe\n  const pendientes = recienCreados.has(k) ? a.pagos.slice(1) : a.pagos.filter(p => {\n    const i = abonosApp.findIndex(x => x.apartado_id === id && x.fecha === p.fecha && x.importe === p.importe);\n    if (i === -1) return true;\n    abonosApp.splice(i, 1);\n    return false;\n  });\n  for (const p of pendientes) {\n    salida.push({ apartado_id: id, descripcion: `${a.cliente} · ${p.fecha} · ${p.importe} €`,\n                  body: { importe: p.importe, forma_pago: p.forma_pago, fecha: p.fecha } });\n  }\n}\nsalida.sort((x, y) => x.body.fecha.localeCompare(y.body.fecha));\nreturn salida.length ? salida.map(json => ({ json })) : [{ json: { vacio: true } }];"
+        "jsCode": "// Ids de todos los apartados del Excel en la app: los que ya estaban y los que se acaban de crear.\nconst { apartados } = $('Cuadrar con la app').first().json;\nconst ids = Object.fromEntries(apartados.filter(a => a.id !== null).map(a => [a.clave, a.id]));\nif ($('Crear apartado').isExecuted) {\n  const pedidos = $('Apartados a crear').all();\n  $('Crear apartado').all().forEach((it, i) => {\n    const r = it.json;\n    if (r.statusCode === 201) ids[pedidos[i].json.clave] = r.body.id;\n    else if (r.statusCode !== 422) throw new Error(`La tienda respondió ${r.statusCode} al crear un apartado: ${JSON.stringify(r.body)}`);\n  });\n}\nreturn [{ json: { ids } }];"
       },
       "executeOnce": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000014",
+      "id": "b2c0d4e6-0000-4000-8000-000000000015",
+      "name": "Abonos a cargar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Los pagos que faltan (de \"Cuadrar con la app\") en el apartado que les toca (de \"Ids de los apartados\").\nconst { apartados } = $('Cuadrar con la app').first().json;\nconst { ids } = $('Ids de los apartados').first().json;\nconst salida = [];\nfor (const a of apartados) {\n  const id = ids[a.clave];\n  if (id === undefined) continue; // la app rechazó el apartado: va al informe\n  for (const p of a.pagosQueFaltan) {\n    salida.push({ apartado_id: id, descripcion: `${a.cliente} · ${p.fecha} · ${p.importe} €`,\n                  body: { importe: p.importe, forma_pago: p.forma_pago, fecha: p.fecha } });\n  }\n}\nsalida.sort((x, y) => x.body.fecha.localeCompare(y.body.fecha));\nreturn salida.length ? salida.map(json => ({ json })) : [{ json: { vacio: true } }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "b2c0d4e6-0000-4000-8000-000000000016",
       "name": "¿Hay abonos nuevos?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
+        660,
         300
       ],
       "parameters": {
@@ -299,7 +327,7 @@
           },
           "conditions": [
             {
-              "id": "c1d2e3f4-0000-4000-8000-000000000014",
+              "id": "c1d2e3f4-0000-4000-8000-000000000016",
               "leftValue": "={{ $json.vacio !== true }}",
               "rightValue": "",
               "operator": {
@@ -315,12 +343,12 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000015",
+      "id": "b2c0d4e6-0000-4000-8000-000000000017",
       "name": "Registrar abono",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
+        880,
         300
       ],
       "parameters": {
@@ -354,26 +382,26 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000016",
+      "id": "b2c0d4e6-0000-4000-8000-000000000018",
       "name": "Ventas a cargar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         300
       ],
       "parameters": {
-        "jsCode": "const clave = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\nconst claveApartado = a => [clave(a.cliente), clave(a.producto), a.fecha].join('|');\n\n// Idempotente: una venta ya existe si coinciden fecha, concepto e importe.\nconst plan = $('Preparar migración').first().json;\nconst enApp = filas('Ventas en la app');\nconst nuevas = plan.ventas.filter(v => {\n  const i = enApp.findIndex(x => x.fecha === v.fecha && clave(x.concepto) === clave(v.concepto) && x.importe === v.importe);\n  if (i === -1) return true;\n  enApp.splice(i, 1);\n  return false;\n});\nif (nuevas.length === 0) return [{ json: { vacio: true } }];\nreturn nuevas.map(v => ({ json: { descripcion: `${v.fecha} · ${v.concepto} · ${v.importe} €`,\n  body: { concepto: v.concepto, importe: v.importe, forma_pago: v.forma_pago, fecha: v.fecha } } }));"
+        "jsCode": "// Las ventas que \"Cuadrar con la app\" no ha encontrado en la app.\nconst { ventasNuevas } = $('Cuadrar con la app').first().json;\nreturn ventasNuevas.length ? ventasNuevas.map(json => ({ json })) : [{ json: { vacio: true } }];"
       },
       "executeOnce": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000017",
+      "id": "b2c0d4e6-0000-4000-8000-000000000019",
       "name": "¿Hay ventas nuevas?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1100,
+        1320,
         300
       ],
       "parameters": {
@@ -386,7 +414,7 @@
           },
           "conditions": [
             {
-              "id": "c1d2e3f4-0000-4000-8000-000000000017",
+              "id": "c1d2e3f4-0000-4000-8000-000000000019",
               "leftValue": "={{ $json.vacio !== true }}",
               "rightValue": "",
               "operator": {
@@ -402,12 +430,12 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000018",
+      "id": "b2c0d4e6-0000-4000-8000-000000000020",
       "name": "Registrar venta",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
         300
       ],
       "parameters": {
@@ -441,12 +469,12 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000019",
+      "id": "b2c0d4e6-0000-4000-8000-000000000021",
       "name": "Apartados al final",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1540,
+        1760,
         300
       ],
       "parameters": {
@@ -465,12 +493,12 @@
       "alwaysOutputData": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000020",
+      "id": "b2c0d4e6-0000-4000-8000-000000000022",
       "name": "Abonos al final",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1760,
+        1980,
         300
       ],
       "parameters": {
@@ -502,12 +530,12 @@
       "alwaysOutputData": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000021",
+      "id": "b2c0d4e6-0000-4000-8000-000000000023",
       "name": "Ventas al final",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1980,
+        2200,
         300
       ],
       "parameters": {
@@ -539,26 +567,26 @@
       "alwaysOutputData": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000022",
+      "id": "b2c0d4e6-0000-4000-8000-000000000024",
       "name": "Redactar informe",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
+        2420,
         300
       ],
       "parameters": {
-        "jsCode": "const clave = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\nconst filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\nconst claveApartado = a => [clave(a.cliente), clave(a.producto), a.fecha].join('|');\n\nconst plan = $('Preparar migración').first().json;\nconst euros = n => `${Number(n).toFixed(2).replace('.', ',')} €`;\nconst detalle = d => typeof d === 'string' ? d : JSON.stringify(d);\n\n// Resultado de cada petición de carga: 201 cargado, 422 rechazado por la app; otro código es un error.\nfunction resultados(nodoPeticion, nodoPedidos) {\n  if (!$(nodoPeticion).isExecuted) return { cargados: 0, rechazados: [] };\n  const pedidos = $(nodoPedidos).all();\n  const r = { cargados: 0, rechazados: [] };\n  $(nodoPeticion).all().forEach((it, i) => {\n    const { statusCode, body } = it.json;\n    if (statusCode === 201) r.cargados++;\n    else if (statusCode === 422) r.rechazados.push({ detalle: pedidos[i].json.descripcion, motivo: detalle(body?.detail) });\n    else throw new Error(`La tienda respondió ${statusCode}: ${JSON.stringify(body)}`);\n  });\n  return r;\n}\nconst ap = resultados('Crear apartado', 'Apartados a crear');\nconst ab = resultados('Registrar abono', 'Abonos a cargar');\nconst ve = resultados('Registrar venta', 'Ventas a cargar');\n\n// Comprobar que lo pendiente en la app coincide con la columna \"resta\" del Excel.\nconst finales = new Map(filas('Apartados al final').map(a => [claveApartado(a), a]));\nconst descuadres = [];\nfor (const a of plan.apartados) {\n  const f = finales.get(claveApartado(a));\n  if (!f) descuadres.push(`${a.descripcion}: no está en la app`);\n  else if (Math.abs(f.pendiente - a.resta_excel) > 0.005)\n    descuadres.push(`${a.descripcion}: en la app faltan ${euros(f.pendiente)}, en el Excel ${euros(a.resta_excel)}`);\n}\n\n// Totales del Excel (lo cargable) frente a lo que hay en la app en esas fechas.\nconst suma = xs => Math.round(xs.reduce((s, x) => s + x, 0) * 100) / 100;\nconst totales = {\n  abonos_excel: suma(plan.apartados.flatMap(a => a.pagos.map(p => p.importe))),\n  abonos_app: suma(filas('Abonos al final').map(a => a.importe)),\n  ventas_excel: suma(plan.ventas.map(v => v.importe)),\n  ventas_app: suma(filas('Ventas al final').map(v => v.importe)),\n};\nif (totales.abonos_excel !== totales.abonos_app || totales.ventas_excel !== totales.ventas_app)\n  descuadres.push('Los totales no coinciden: puede que la app no estuviera vacía o que la app haya rechazado algo (ver arriba).');\n\nconst lista = (titulo, xs, f) => xs.length ? [`${titulo} (${xs.length})`, ...xs.map(x => '- ' + f(x)), ''] : [];\nconst rechazados = [...ap.rechazados, ...ab.rechazados, ...ve.rechazados];\nconst texto = [\n  'Hola, Marisa:',\n  '',\n  'Ha terminado la migración del Excel a la app. Resumen:',\n  '',\n  `- Apartados cargados ahora: ${ap.cargados} de ${plan.apartados.length} (los demás ya estaban o los rechazó la app)`,\n  `- Abonos posteriores cargados ahora: ${ab.cargados}`,\n  `- Ventas cargadas ahora: ${ve.cargados} de ${plan.ventas.length}`,\n  `- Abonos: ${euros(totales.abonos_excel)} en el Excel y ${euros(totales.abonos_app)} en la app`,\n  `- Ventas: ${euros(totales.ventas_excel)} en el Excel y ${euros(totales.ventas_app)} en la app`,\n  '',\n  ...lista('NO SE HA CARGADO, revísalo tú', plan.informe.no_cargados, x => `fila ${x.fila} de ${x.origen}: ${x.detalle}. ${x.motivo}`),\n  ...lista('LA APP LO HA RECHAZADO', rechazados, x => `${x.detalle}: ${x.motivo}`),\n  ...lista('DESCUADRES', descuadres, x => x),\n  ...lista('SUPOSICIONES (confírmalas)', plan.informe.suposiciones, x => `fila ${x.fila}: ${x.detalle}. ${x.motivo}`),\n  ...lista('Filas que no se han cargado a propósito', plan.informe.ignoradas, x => `fila ${x.fila} de ventas: ${x.detalle}. ${x.motivo}`),\n  'Este correo lo envía el flujo \"Migración Excel\" de n8n.',\n].join('\\n');\n\n// Los cinco primeros campos se llaman como las entradas de \"SUB - Enviar notificación\".\nreturn [{ json: {\n  destinatario: 'tienda', email: '',\n  asunto: rechazados.length || descuadres.length || plan.informe.no_cargados.length\n    ? 'Migración del Excel: terminada, con casos para revisar' : 'Migración del Excel: terminada sin incidencias',\n  mensaje: texto, contexto: 'Migración del Excel', totales,\n  cargados: { apartados: ap.cargados, abonos: ab.cargados, ventas: ve.cargados },\n  rechazados, descuadres,\n} }];"
+        "jsCode": "const filas = nodo => $(nodo).all().map(i => i.json).filter(x => x.id !== undefined);\n\nconst plan = $('Preparar migración').first().json;\nconst { apartados } = $('Cuadrar con la app').first().json;\nconst { ids } = $('Ids de los apartados').first().json;\nconst euros = n => `${Number(n).toFixed(2).replace('.', ',')} €`;\nconst detalle = d => typeof d === 'string' ? d : JSON.stringify(d);\n\n// Resultado de cada petición de carga: 201 cargado, 422 rechazado por la app; otro código es un error.\nfunction resultados(nodoPeticion, nodoPedidos) {\n  if (!$(nodoPeticion).isExecuted) return { cargados: 0, rechazados: [] };\n  const pedidos = $(nodoPedidos).all();\n  const r = { cargados: 0, rechazados: [] };\n  $(nodoPeticion).all().forEach((it, i) => {\n    const { statusCode, body } = it.json;\n    if (statusCode === 201) r.cargados++;\n    else if (statusCode === 422) r.rechazados.push({ detalle: pedidos[i].json.descripcion, motivo: detalle(body?.detail) });\n    else throw new Error(`La tienda respondió ${statusCode}: ${JSON.stringify(body)}`);\n  });\n  return r;\n}\nconst ap = resultados('Crear apartado', 'Apartados a crear');\nconst ab = resultados('Registrar abono', 'Abonos a cargar');\nconst ve = resultados('Registrar venta', 'Ventas a cargar');\n\n// Comprobar que lo pendiente en la app coincide con la columna \"resta\" del Excel (cada apartado, por su id).\nconst finales = new Map(filas('Apartados al final').map(a => [a.id, a]));\nconst descuadres = [];\nfor (const a of apartados) {\n  const f = ids[a.clave] === undefined ? undefined : finales.get(ids[a.clave]);\n  if (!f) descuadres.push(`${a.descripcion}: no está en la app`);\n  else if (Math.abs(f.pendiente - a.resta_excel) > 0.005)\n    descuadres.push(`${a.descripcion}: en la app faltan ${euros(f.pendiente)}, en el Excel ${euros(a.resta_excel)}`);\n}\n\n// Totales del Excel (lo cargable) frente a lo que hay en la app en esas fechas.\nconst suma = xs => Math.round(xs.reduce((s, x) => s + x, 0) * 100) / 100;\nconst totales = {\n  abonos_excel: suma(plan.apartados.flatMap(a => a.pagos.map(p => p.importe))),\n  abonos_app: suma(filas('Abonos al final').map(a => a.importe)),\n  ventas_excel: suma(plan.ventas.map(v => v.importe)),\n  ventas_app: suma(filas('Ventas al final').map(v => v.importe)),\n};\nif (totales.abonos_excel !== totales.abonos_app || totales.ventas_excel !== totales.ventas_app)\n  descuadres.push('Los totales no coinciden: puede que la app no estuviera vacía o que la app haya rechazado algo (ver arriba).');\n\nconst lista = (titulo, xs, f) => xs.length ? [`${titulo} (${xs.length})`, ...xs.map(x => '- ' + f(x)), ''] : [];\nconst rechazados = [...ap.rechazados, ...ab.rechazados, ...ve.rechazados];\nconst texto = [\n  'Hola, Marisa:',\n  '',\n  'Ha terminado la migración del Excel a la app. Resumen:',\n  '',\n  `- Apartados cargados ahora: ${ap.cargados} de ${plan.apartados.length} (los demás ya estaban o los rechazó la app)`,\n  `- Abonos posteriores cargados ahora: ${ab.cargados}`,\n  `- Ventas cargadas ahora: ${ve.cargados} de ${plan.ventas.length}`,\n  `- Abonos: ${euros(totales.abonos_excel)} en el Excel y ${euros(totales.abonos_app)} en la app`,\n  `- Ventas: ${euros(totales.ventas_excel)} en el Excel y ${euros(totales.ventas_app)} en la app`,\n  '',\n  ...lista('NO SE HA CARGADO, revísalo tú', plan.informe.no_cargados, x => `fila ${x.fila} de ${x.origen}: ${x.detalle}. ${x.motivo}`),\n  ...lista('LA APP LO HA RECHAZADO', rechazados, x => `${x.detalle}: ${x.motivo}`),\n  ...lista('DESCUADRES', descuadres, x => x),\n  ...lista('SUPOSICIONES (confírmalas)', plan.informe.suposiciones, x => `fila ${x.fila}: ${x.detalle}. ${x.motivo}`),\n  ...lista('Filas que no se han cargado a propósito', plan.informe.ignoradas, x => `fila ${x.fila} de ventas: ${x.detalle}. ${x.motivo}`),\n  'Este correo lo envía el flujo \"Migración Excel\" de n8n.',\n].join('\\n');\n\n// Los cinco primeros campos se llaman como las entradas de \"SUB - Enviar notificación\".\nreturn [{ json: {\n  destinatario: 'tienda', email: '',\n  asunto: rechazados.length || descuadres.length || plan.informe.no_cargados.length\n    ? 'Migración del Excel: terminada, con casos para revisar' : 'Migración del Excel: terminada sin incidencias',\n  mensaje: texto, contexto: 'Migración del Excel', totales,\n  cargados: { apartados: ap.cargados, abonos: ab.cargados, ventas: ve.cargados },\n  rechazados, descuadres,\n} }];"
       },
       "executeOnce": true
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000023",
+      "id": "b2c0d4e6-0000-4000-8000-000000000025",
       "name": "Enviar informe a Marisa",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        2420,
+        2640,
         300
       ],
       "parameters": {
@@ -632,12 +660,12 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000024",
+      "id": "b2c0d4e6-0000-4000-8000-000000000026",
       "name": "¿Se envió el informe?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2640,
+        2860,
         300
       ],
       "parameters": {
@@ -666,12 +694,12 @@
       }
     },
     {
-      "id": "b2c0d4e6-0000-4000-8000-000000000025",
+      "id": "b2c0d4e6-0000-4000-8000-000000000027",
       "name": "Avisar de que no se envió",
       "type": "n8n-nodes-base.stopAndError",
       "typeVersion": 1,
       "position": [
-        2860,
+        3080,
         300
       ],
       "parameters": {
@@ -773,6 +801,17 @@
       "main": [
         [
           {
+            "node": "Cuadrar con la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cuadrar con la app": {
+      "main": [
+        [
+          {
             "node": "Apartados a crear",
             "type": "main",
             "index": 0
@@ -802,7 +841,7 @@
         ],
         [
           {
-            "node": "Abonos a cargar",
+            "node": "Ids de los apartados",
             "type": "main",
             "index": 0
           }
@@ -810,6 +849,17 @@
       ]
     },
     "Crear apartado": {
+      "main": [
+        [
+          {
+            "node": "Ids de los apartados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ids de los apartados": {
       "main": [
         [
           {
@@ -973,7 +1023,7 @@
     "executionOrder": "v1",
     "errorWorkflow": "OusUpH8JpPQsG52u"
   },
-  "versionId": "c787a73d-cfd1-4f77-bd95-2fbc8b5f813f",
+  "versionId": "32ad94c9-4b85-4fbf-85cc-c907f48ea197",
   "meta": {},
   "id": "j9rjILBSgLhZ4tCo",
   "tags": []
