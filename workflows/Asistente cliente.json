@@ -1,0 +1,1004 @@
+{
+  "name": "Assistente cliente",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        -240,
+        80
+      ],
+      "id": "ee0e867e-2595-4ea0-af44-b1b8577bc767",
+      "name": "Mensaje del cliente",
+      "webhookId": "58d1b4cc-a74e-4cf1-9336-95b7c6738491",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2b2a49d2-50ef-4f9a-97fa-c26ddba28a69",
+              "name": "chat_id",
+              "value": "={{ String($json.message.chat.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "62f91ca5-e60f-4d23-8bf7-4664808047bc",
+              "name": "from_id",
+              "value": "={{ String($json.message.from.id) }}",
+              "type": "string"
+            },
+            {
+              "id": "0521f885-1811-4c9a-9fbf-54040f0c8f0f",
+              "name": "chat_tipo",
+              "value": "={{ $json.message.chat.type }}",
+              "type": "string"
+            },
+            {
+              "id": "9f23a2c3-31ee-484e-b0f7-e482ee6ecc67",
+              "name": "texto",
+              "value": "={{ $json.message.text ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "9d9de697-d59a-46a1-929d-68fdd0ddd55c",
+              "name": "contacto_telefono",
+              "value": "={{ $json.message.contact?.phone_number ?? '' }}",
+              "type": "string"
+            },
+            {
+              "id": "6d1516c5-909b-498d-a7a8-0d09f65a4840",
+              "name": "contacto_user_id",
+              "value": "={{ String($json.message.contact?.user_id ?? '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": "=",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -16,
+        80
+      ],
+      "id": "3f4f28a0-cf0e-486c-83ef-49ec8485928d",
+      "name": "Leer mensaje"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "b0d6754f-f152-4984-9825-8c8fb4859b62",
+              "leftValue": "={{ $json.chat_tipo }}",
+              "rightValue": "private",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        208,
+        80
+      ],
+      "id": "8e69e25f-d75a-449c-82bc-b521858611ac",
+      "name": "¿Es chat privado?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.contacto_telefono }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    },
+                    "id": "0f55ef2e-c6e3-46e9-9040-7771884c62db"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Contacto"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "9e993972-14e7-4c8d-9df7-a5174dd86c11",
+                    "leftValue": "={{  $json.texto.trim().toLowerCase() }}",
+                    "rightValue": "/salir",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Salir"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        432,
+        64
+      ],
+      "id": "33613876-198f-4a94-a4f8-aa27159df8a7",
+      "name": "Tipo de mensaje"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Solo puedes compartir tu propio número de teléfono. Pulsa el botón \"Compartir mi número\" para continuar",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        -112
+      ],
+      "id": "1e402ece-8244-401f-9c8e-b3ce005ba8c7",
+      "name": "Avisar contacto ajeno",
+      "webhookId": "e01214fe-0499-4a9b-b6c8-16bc852055cf",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Oaqtq6HZw1kXGQsO",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/M5CZhQPxIk0rcMWL/datatables/Oaqtq6HZw1kXGQsO"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        -304
+      ],
+      "id": "236c51a4-2288-4609-a8c2-602a59957d76",
+      "name": "Borrar sesión anterior",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "b6ba1ffc-c8f4-4386-941f-543994bf398d",
+              "leftValue": "={{ $json.contacto_user_id }}",
+              "rightValue": "={{ $json.from_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        656,
+        -208
+      ],
+      "id": "41edd1a5-c107-4f47-b696-ecfeb4f03b62",
+      "name": "¿El contacto es suyo?"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "Oaqtq6HZw1kXGQsO",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/M5CZhQPxIk0rcMWL/datatables/Oaqtq6HZw1kXGQsO"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "chat_id": "={{ $('Leer mensaje').first().json.chat_id }}",
+            "telefono": "={{ $('Leer mensaje').first().json.contacto_telefono.replace(/\\D/g,'').slice(-9) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "verificado_en",
+              "displayName": "verificado_en",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1104,
+        -304
+      ],
+      "id": "f31319dd-7e37-45b7-a5c0-d966955f2531",
+      "name": "Guardar teléfono pendiente"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Leer mensaje').first().json.chat_id }}",
+        "text": "Gracias. Ahora escribe el número de tu apartado, el que aparece en tu confirmación (por ejemplo 12).",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        -304
+      ],
+      "id": "026573fd-7b4d-4220-adc0-c77301823b16",
+      "name": "Pedir número de apartado",
+      "webhookId": "cfd6e783-1635-42d3-9f57-1b5d603a7fb2",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Oaqtq6HZw1kXGQsO",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/M5CZhQPxIk0rcMWL/datatables/Oaqtq6HZw1kXGQsO"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        656,
+        272
+      ],
+      "id": "8d76037e-050b-4327-8042-3850d72137a0",
+      "name": "Sesión del chat",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $('Leer mensaje').first().json;\nconst fila = $input.first().json; // vacío si el chat no tiene fila\nconst DIEZ_MIN = 10 * 60 * 1000;\nconst vigente = (fecha) => Date.now() - new Date(fecha).getTime() <= DIEZ_MIN;\n\nlet estado = 'sin_sesion';\nif (fila.id) {\n  // pendiente: caduca a los 10 min de crearse; verificada: a los 10 min de la última actividad\n  const referencia = fila.verificado_en ? fila.verificado_en : fila.createdAt;\n  if (vigente(referencia)) {\n    estado = fila.verificado_en ? 'activa' : 'esperando_apartado';\n  }\n}\n\nreturn [{ json: { ...msg, estado, telefono: fila.telefono ?? '', fila_id: fila.id ?? null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        272
+      ],
+      "id": "4564f26f-b6bc-43bb-a9a6-2c7e94d6d6d3",
+      "name": "Decidir estado de la sesión"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "sin_sesion",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "c6a6102f-08c8-4075-8c16-9baee5617a8f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Sin sesión"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "fa1f95fe-cadd-4587-8350-61fef4344bd0",
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "esperando_apartado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Esperando apartado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "aff0e78c-92bc-4286-9d04-b91cbdea16eb",
+                    "leftValue": "={{ $json.estado }}",
+                    "rightValue": "activa",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Activa"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        1104,
+        256
+      ],
+      "id": "c4c44c29-378d-44d5-b8cf-7bd23a66c5d7",
+      "name": "¿En qué estado está?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Hola, soy el asistente de Paso Firme. Para ver tus apartados, pulsa el botón \"Compartir mi número\". Después te pediré el número de tu apartado.",
+        "replyMarkup": "replyKeyboard",
+        "replyKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Compartir mi número",
+                    "additionalFields": {
+                      "request_contact": true
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "replyKeyboardOptions": {
+          "resize_keyboard": true,
+          "one_time_keyboard": true
+        },
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1328,
+        80
+      ],
+      "id": "b57bafd9-778b-4462-898f-12278b90a606",
+      "name": "Pedir compartir número",
+      "webhookId": "247956ec-94c3-4284-8ae2-66de2faa0eef",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Leer mensaje').first().json.chat_id }}",
+        "text": "No he podido verificar ese apartado. Comprueba el número y que lo hayas reservado con este mismo teléfono. Si necesitas ayuda, contacta con la tienda",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2000,
+        464
+      ],
+      "id": "37741fc9-658d-42fe-8106-a1e96f9f751d",
+      "name": "Avisar apartado no verificado",
+      "webhookId": "da29ffc3-a363-47d8-9a3f-700ba11f3495",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Oaqtq6HZw1kXGQsO",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/M5CZhQPxIk0rcMWL/datatables/Oaqtq6HZw1kXGQsO"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $('Leer mensaje').first().json.chat_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "verificado_en": "={{ $now }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "verificado_en",
+              "displayName": "verificado_en",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2000,
+        272
+      ],
+      "id": "19c8c565-d555-4f29-beb4-e7896a35cded",
+      "name": "Activar sesión"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/apartados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1328,
+        368
+      ],
+      "id": "414c09bf-665c-439b-b816-d7ed98b56709",
+      "name": "Apartados del cliente",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const s = $('Decidir estado de la sesión').first().json;\nconst tel = s.telefono;\nconst texto = s.texto.trim();\n\n// apartados de esta persona: comparación exacta de las 9 últimas cifras\nconst propios = $input.all()\n  .map(i => i.json)\n  .filter(a => tel !== '' && String(a.telefono ?? '').replace(/\\D/g, '').slice(-9) === tel);\n\n// sesión activa: ya verificada. Si no, el número tecleado debe ser de un apartado suyo\nconst idOk = /^#?\\d{1,6}$/.test(texto)\n  && propios.some(a => a.id === Number(texto.replace('#', '')));\nconst verificado = s.estado === 'activa' || idOk;\n\nconst apartados = propios\n  .filter(a => a.estado === 'activo')\n  .map(a => ({ producto: a.producto, pendiente: a.pendiente, fecha_limite: a.fecha_limite }));\n\nreturn [{ json: { chat_id: s.chat_id, verificado, apartados } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1552,
+        368
+      ],
+      "id": "c6da3709-c806-4a5f-809e-9f1efcbb96f6",
+      "name": "Verificar apartado"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "d3704cf0-63ed-4910-9caf-32da1313e5ae",
+              "leftValue": "={{ $json.verificado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1776,
+        368
+      ],
+      "id": "e0a8ab91-d676-43c2-b540-16b2ae06a5da",
+      "name": "¿Apartado verificado?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Verificar apartado').first().json.chat_id }}",
+        "text": "={{ $('Verificar apartado').first().json.apartados.length === 0\n  ? 'No tienes apartados activos ahora mismo. Si crees que es un error, contacta con la tienda.'\n  : 'Tus apartados activos:\\n\\n' + $('Verificar apartado').first().json.apartados\n      .map(a => `• ${a.producto}\\n  Pendiente: ${a.pendiente} €\\n  Fecha límite: ${a.fecha_limite}`)\n      .join('\\n\\n') + '\\n\\nEscribe /salir para cerrar la sesión.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2224,
+        272
+      ],
+      "id": "d7b5fec4-a1b2-4b72-b41d-2c330ebb04da",
+      "name": "Responder apartados",
+      "webhookId": "86aa64bf-b001-4f89-8fbe-6e0adf119d4b",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "Oaqtq6HZw1kXGQsO",
+          "mode": "list",
+          "cachedResultName": "clientes_telegram",
+          "cachedResultUrl": "/projects/M5CZhQPxIk0rcMWL/datatables/Oaqtq6HZw1kXGQsO"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "chat_id",
+              "keyValue": "={{ $json.chat_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        656,
+        80
+      ],
+      "id": "83653679-ff93-4af3-bf83-53331d981c87",
+      "name": "Cerrar sesión",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Leer mensaje').first().json.chat_id }}",
+        "text": "Sesión cerrada. Cuando quieras consultar tus apartados, escríbeme de nuevo.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        80
+      ],
+      "id": "13dfad30-f048-45c1-ad3c-aef7062f0b0e",
+      "name": "Confirmar salida",
+      "webhookId": "b74c033e-9ec1-49c8-af89-7d8eae181167",
+      "credentials": {
+        "telegramApi": {
+          "id": "woCyyV0YBGWMMPvc",
+          "name": "Telegram Clientes"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Mensaje del cliente": {
+      "main": [
+        [
+          {
+            "node": "Leer mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿Es chat privado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es chat privado?": {
+      "main": [
+        [
+          {
+            "node": "Tipo de mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de mensaje": {
+      "main": [
+        [
+          {
+            "node": "¿El contacto es suyo?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cerrar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sesión del chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿El contacto es suyo?": {
+      "main": [
+        [
+          {
+            "node": "Borrar sesión anterior",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar contacto ajeno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Borrar sesión anterior": {
+      "main": [
+        [
+          {
+            "node": "Guardar teléfono pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar teléfono pendiente": {
+      "main": [
+        [
+          {
+            "node": "Pedir número de apartado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sesión del chat": {
+      "main": [
+        [
+          {
+            "node": "Decidir estado de la sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir estado de la sesión": {
+      "main": [
+        [
+          {
+            "node": "¿En qué estado está?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿En qué estado está?": {
+      "main": [
+        [
+          {
+            "node": "Pedir compartir número",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apartados del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apartados del cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartados del cliente": {
+      "main": [
+        [
+          {
+            "node": "Verificar apartado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar apartado": {
+      "main": [
+        [
+          {
+            "node": "¿Apartado verificado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Apartado verificado?": {
+      "main": [
+        [
+          {
+            "node": "Activar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Avisar apartado no verificado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activar sesión": {
+      "main": [
+        [
+          {
+            "node": "Responder apartados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerrar sesión": {
+      "main": [
+        [
+          {
+            "node": "Confirmar salida",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HHKPnBEBF9SObOSU",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5a979467-307f-4604-9a86-01412c486795",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "4UFYTHLcKFoPTnyS",
+  "tags": []
+}
