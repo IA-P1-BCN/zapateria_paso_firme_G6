@@ -281,6 +281,41 @@ Para el flujo 03 se compararon dos modelos gratuitos de Groq en la misma tarea: 
 
 **Modelo elegido: `qwen/qwen3.8-27b`.** Los dos aciertan todo, así que la diferencia está en el coste. Qwen tarda casi la mitad y gasta unas 4 veces menos tokens de respuesta (`gpt-oss` razona antes de contestar), lo que deja más margen en los límites de la capa gratuita de Groq y menos riesgo de que la respuesta se corte. La muestra es pequeña (9 correos) y los dos lo hacen bien; no es una diferencia de calidad. El flujo 03 usa ya este modelo y da los mismos resultados con los 9 correos.
 
+### Entrada del CSV del datáfono (T-019)
+
+El flujo `Entrada CSV del datáfono` lee el CSV de cobros con tarjeta que exporta el datáfono, lo cuadra con las ventas y los abonos pagados con tarjeta que ya hay en la app y registra como venta con tarjeta los cobros que faltan. Le manda a Marisa un informe con lo que ha cargado, lo que ya estaba y lo que tiene que revisar ella.
+
+**Cómo decide:**
+
+- **Cobros válidos:** solo cuentan las líneas `VENTA` y `AUTORIZADA`. Las denegadas, las anuladas, la línea de totales y las repetidas (mismo número de operación) se ignoran.
+- **Para que Marisa las revise, sin cargar nada:** las devoluciones (la app no tiene devoluciones) y las líneas con fecha, importe o número de operación ilegibles.
+- **¿Ya está en la app?** Un cobro ya está si cuadra con una venta **o un abono** pagados con tarjeta el mismo día y por el mismo importe; cada registro de la app solo cuadra con un cobro. Hay que mirar también los abonos: un abono pagado con tarjeta pasa por el datáfono y no es una venta nueva.
+- **Lo que falta** se carga como venta con tarjeta, con la fecha del cobro y el concepto `Cobro con tarjeta (datáfono, op. 000102)`. Por ese número de operación, si se vuelve a ejecutar no se duplica nada.
+
+**Para ponerlo en marcha:**
+
+- Copia el CSV a n8n: `docker compose exec n8n mkdir -p /home/node/.n8n-files/datafono` y `docker compose cp <fichero>.csv n8n:/home/node/.n8n-files/datafono/`. Formato: separador `;`, coma decimal y columnas `Fecha;Hora;Terminal;Nº operación;Tarjeta;Tipo;Estado;Importe`. El ejemplo ficticio está en [`data/datafono_octubre.csv`](data/datafono_octubre.csv).
+- Necesita la credencial `Tienda API`. Tras importarlo, elige `SUB - Enviar notificación` en *Enviar informe a Marisa* y `08 - Error Workflow` en *Settings → Error workflow*.
+- Se ejecuta a mano (*Ejecutar a mano*) o cada noche a las 22:30. **Publícalo en una sola instancia de n8n.**
+
+**Resultados con `data/datafono_octubre.csv`** (tienda con los datos de la migración de T-012):
+
+| Línea | Cobro | Resultado |
+|---|---|---|
+| op. 000101 | 01/10 · 79,90 € | Ya estaba: venta «Bota montaña T41» con tarjeta |
+| op. 000102 | 01/10 · 24,50 € | **Cargado** como venta con tarjeta |
+| op. 000201 | 02/10 · 12,00 € | Ya estaba: venta «Plantillas gel» con tarjeta |
+| op. 000202 | 02/10 · 45,00 € · denegada | Ignorada |
+| op. 000203 (dos veces) | 02/10 · 18,95 € | **Cargado una sola vez**. Ese día hay una venta de 18,95 €, pero en efectivo, así que no es este cobro |
+| op. 000301 | 03/10 · 92,00 € | Ya estaba: venta «Botín piel negro T40» con tarjeta |
+| op. 000401 | 04/10 · −12,00 € · devolución | Para que Marisa lo revise |
+| op. 000501 | 05/10 · `3O,00` | Para que Marisa lo revise: importe ilegible |
+| op. 000601 | 06/10 · 39,90 € · anulada | Ignorada |
+| op. 000602 | 06/10 · 64,50 € | **Cargado** como venta con tarjeta |
+| Totales | — | Ignorada |
+
+Al ejecutarlo otra vez no carga nada: reconoce las tres ventas que cargó por su número de operación.
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -587,6 +622,41 @@ For workflow 03, two free Groq models were compared on the same task: extracting
 | Answer tokens (mean) | 134 | 32 |
 
 **Chosen model: `qwen/qwen3.8-27b`.** Both get everything right, so the difference is cost. Qwen takes about half the time and uses roughly 4 times fewer answer tokens (`gpt-oss` reasons before answering), which leaves more room within Groq's free-tier limits and less risk of a cut-off answer. The sample is small (9 emails) and both do well; this is not a quality difference. Workflow 03 now uses this model and gives the same results with the 9 emails.
+
+### Card terminal CSV import (T-019)
+
+The `Entrada CSV del datáfono` workflow reads the card payments CSV exported by the card terminal, reconciles it with the card sales and card layaway payments already in the app, and records the missing charges as card sales. It emails Marisa a report with what it loaded, what was already there and what she needs to check.
+
+**How it decides:**
+
+- **Valid charges:** only `VENTA` + `AUTORIZADA` lines count. Declined and cancelled lines, the totals line and repeated lines (same operation number) are ignored.
+- **For Marisa to check, nothing loaded:** refunds (the app has no refunds) and lines with an unreadable date, amount or operation number.
+- **Already in the app?** A charge is already there if it matches a card sale **or a card layaway payment** on the same day for the same amount; each app record matches one charge only. Layaway payments must be checked too: a card layaway payment goes through the terminal and is not a new sale.
+- **Missing charges** are loaded as card sales with the charge date and the concept `Cobro con tarjeta (datáfono, op. 000102)`. Thanks to that operation number, running it again duplicates nothing.
+
+**To run it:**
+
+- Copy the CSV into n8n: `docker compose exec n8n mkdir -p /home/node/.n8n-files/datafono` and `docker compose cp <file>.csv n8n:/home/node/.n8n-files/datafono/`. Format: `;` separator, decimal comma and columns `Fecha;Hora;Terminal;Nº operación;Tarjeta;Tipo;Estado;Importe`. The fictitious sample is [`data/datafono_octubre.csv`](data/datafono_octubre.csv).
+- It needs the `Tienda API` credential. After importing, select `SUB - Enviar notificación` in *Enviar informe a Marisa* and `08 - Error Workflow` in *Settings → Error workflow*.
+- It runs manually (*Ejecutar a mano*) or every night at 22:30. **Publish it on a single n8n instance only.**
+
+**Results with `data/datafono_octubre.csv`** (shop with the T-012 migration data):
+
+| Line | Charge | Result |
+|---|---|---|
+| op. 000101 | 01/10 · €79.90 | Already there: card sale "Bota montaña T41" |
+| op. 000102 | 01/10 · €24.50 | **Loaded** as a card sale |
+| op. 000201 | 02/10 · €12.00 | Already there: card sale "Plantillas gel" |
+| op. 000202 | 02/10 · €45.00 · declined | Ignored |
+| op. 000203 (twice) | 02/10 · €18.95 | **Loaded once**. There is an €18.95 sale that day, but in cash, so it is not this charge |
+| op. 000301 | 03/10 · €92.00 | Already there: card sale "Botín piel negro T40" |
+| op. 000401 | 04/10 · −€12.00 · refund | For Marisa to check |
+| op. 000501 | 05/10 · `3O,00` | For Marisa to check: unreadable amount |
+| op. 000601 | 06/10 · €39.90 · cancelled | Ignored |
+| op. 000602 | 06/10 · €64.50 | **Loaded** as a card sale |
+| Totals | — | Ignored |
+
+Running it again loads nothing: it recognises the three sales it loaded by their operation number.
 
 ### Repository layout
 
