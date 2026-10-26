@@ -1,0 +1,567 @@
+{
+  "name": "Entrada CSV del datáfono",
+  "nodes": [
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000001",
+      "name": "Ejecutar a mano",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000002",
+      "name": "Cada noche a las 22:30",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 22 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000003",
+      "name": "Leer CSV del datáfono",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        220,
+        100
+      ],
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/datafono/*.csv",
+        "options": {}
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000004",
+      "name": "Extraer líneas",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "options": {
+          "delimiter": ";"
+        }
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000005",
+      "name": "Preparar cobros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const sinAcentos = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '');\n\nconst clave = s => sinAcentos(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\n// 01/10/2026 o 1/10/26 → 2026-10-01\nfunction fecha(s) {\n  const m = String(s ?? '').trim().match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{2}|\\d{4})$/);\n  if (!m) return null;\n  const año = m[3].length === 2 ? '20' + m[3] : m[3];\n  return `${año}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;\n}\n\n// \"79,90\", \"1.250,00\", \"-12,00\" → número; \"3O,00\" → null\nfunction importe(s) {\n  let t = String(s ?? '').replace(/[€\\s]/g, '');\n  if (t.includes(',')) t = t.replace(/\\./g, '').replace(',', '.');\n  if (!/^-?\\d+(\\.\\d+)?$/.test(t)) return null;\n  return Math.round(Number(t) * 100) / 100;\n}\n\n// Busca una columna por su nombre sin depender de acentos ni mayúsculas (\"Nº operación\" → \"n operacion\").\nfunction columna(fila, ...nombres) {\n  const k = Object.keys(fila).find(c => nombres.includes(clave(c)));\n  return k === undefined ? '' : String(fila[k] ?? '').trim();\n}\n\nfunction prepararCobros(filas) {\n  const cobros = [], ignoradas = [], dudosas = [];\n  const vistas = new Set();\n  filas.forEach((f, i) => {\n    const linea = i + 2; // la 1 es la cabecera\n    const texto = Object.values(f).join(';');\n    const tipo = clave(columna(f, 'tipo'));\n    const estado = clave(columna(f, 'estado'));\n    const referencia = columna(f, 'n operacion', 'no operacion', 'numero operacion', 'operacion', 'referencia');\n    if (/\\btotal\\b/.test(clave(texto))) { ignoradas.push({ linea, detalle: texto, motivo: 'Línea de totales' }); return; }\n    if (estado && estado !== 'autorizada') { ignoradas.push({ linea, detalle: texto, motivo: `Operación ${columna(f, 'estado').toLowerCase()}: no hubo cobro` }); return; }\n    const c = { linea, fecha: fecha(columna(f, 'fecha')), importe: importe(columna(f, 'importe')), referencia, tipo, texto };\n    if (!c.fecha || c.importe === null || !c.referencia) {\n      dudosas.push({ linea, detalle: texto, motivo: 'No se puede leer la fecha, el importe o el número de operación' }); return;\n    }\n    if (tipo && tipo !== 'venta') {\n      dudosas.push({ linea, detalle: texto, motivo: `Operación de tipo ${columna(f, 'tipo')}: la app no registra devoluciones ni otros tipos, revísalo tú` }); return;\n    }\n    if (c.importe <= 0) { dudosas.push({ linea, detalle: texto, motivo: 'Importe cero o negativo' }); return; }\n    if (vistas.has(c.referencia)) { ignoradas.push({ linea, detalle: texto, motivo: `Línea repetida en el CSV (op. ${c.referencia})` }); return; }\n    vistas.add(c.referencia);\n    cobros.push(c);\n  });\n  const fechas = cobros.map(c => c.fecha).sort();\n  return { cobros, ignoradas, dudosas, desde: fechas[0] ?? null, hasta: fechas[fechas.length - 1] ?? null };\n}\n\nreturn [{ json: prepararCobros($input.all().map(i => i.json)) }];"
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000006",
+      "name": "Ventas en la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "url": "http://tienda:8000/api/ventas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Preparar cobros').first().json.desde }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Preparar cobros').first().json.hasta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000007",
+      "name": "Abonos en la app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "url": "http://tienda:8000/api/abonos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Preparar cobros').first().json.desde }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Preparar cobros').first().json.hasta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000008",
+      "name": "Conciliar cobros",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const marcaDatafono = ref => `(datáfono, op. ${ref})`;\n\nfunction conciliar(cobros, ventas, abonos) {\n  const yaEstaban = [], aCargar = [];\n  // 1. Cobros que este flujo ya cargó antes: su venta lleva el número de operación en el concepto.\n  const pendientes = cobros.filter(c => {\n    const v = ventas.find(v => String(v.concepto).includes(marcaDatafono(c.referencia)));\n    if (v) yaEstaban.push({ ...c, como: `venta #${v.id} cargada antes desde el datáfono` });\n    return !v;\n  });\n  // 2. Lo demás se cuadra con las ventas y los abonos pagados con tarjeta del mismo día y el mismo importe.\n  //    Cada registro de la app solo cuadra con un cobro.\n  const libres = [\n    ...ventas.filter(v => v.forma_pago === 'tarjeta' && !String(v.concepto).includes('(datáfono, op.'))\n      .map(v => ({ fecha: v.fecha, importe: v.importe, como: `venta #${v.id} «${v.concepto}»` })),\n    ...abonos.filter(a => a.forma_pago === 'tarjeta')\n      .map(a => ({ fecha: a.fecha, importe: a.importe, como: `abono del apartado #${a.apartado_id}` })),\n  ];\n  for (const c of pendientes) {\n    const i = libres.findIndex(r => r.fecha === c.fecha && Math.abs(r.importe - c.importe) < 0.005);\n    if (i === -1) aCargar.push(c);\n    else { yaEstaban.push({ ...c, como: libres[i].como }); libres.splice(i, 1); }\n  }\n  return { yaEstaban, aCargar };\n}\n\nconst ventaDesdeCobro = c => ({\n  concepto: `Cobro con tarjeta ${marcaDatafono(c.referencia)}`, importe: c.importe, forma_pago: 'tarjeta', fecha: c.fecha,\n});\n\nconst euros = n => `${Number(n).toFixed(2).replace('.', ',')} €`;\n\n// La conciliación se hace solo aquí: \"Cobros a cargar\" y \"Redactar informe\" leen este resultado.\n// Idempotente: un cobro ya está en la app si su venta lleva el número de operación,\n// o si cuadra con una venta o un abono pagado con tarjeta del mismo día e importe.\nconst { cobros } = $('Preparar cobros').first().json;\nconst { aCargar, yaEstaban } = conciliar(cobros, $('Ventas en la app').all().map(i => i.json).filter(x => x.id !== undefined), $('Abonos en la app').all().map(i => i.json).filter(x => x.id !== undefined));\nreturn [{ json: {\n  aCargar: aCargar.map(c => ({ referencia: c.referencia, descripcion: `${c.fecha} · ${euros(c.importe)} · op. ${c.referencia}`, body: ventaDesdeCobro(c) })),\n  yaEstaban: yaEstaban.map(c => `${c.fecha} · ${euros(c.importe)} · op. ${c.referencia} → ${c.como}`),\n} }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000009",
+      "name": "Cobros a cargar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Un item por venta a cargar; si no hay ninguna, un item vacío para que el flujo siga hasta el informe.\nconst { aCargar } = $('Conciliar cobros').first().json;\nif (aCargar.length === 0) return [{ json: { vacio: true } }];\nreturn aCargar.map(json => ({ json }));"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000010",
+      "name": "¿Hay cobros nuevos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a7b8c9d0-0000-4000-8000-000000000010",
+              "leftValue": "={{ $json.vacio !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000011",
+      "name": "Registrar venta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://tienda:8000/api/ventas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000012",
+      "name": "Redactar informe",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const p = $('Preparar cobros').first().json;\nconst { yaEstaban } = $('Conciliar cobros').first().json;\n// Resultado de cada venta: 201 cargada, 422 rechazada por la app; otro código es un error.\nconst cargadas = [], rechazadas = [];\nif ($('Registrar venta').isExecuted) {\n  const pedidos = $('Cobros a cargar').all();\n  $('Registrar venta').all().forEach((it, i) => {\n    const { statusCode, body } = it.json;\n    const d = pedidos[i].json.descripcion;\n    if (statusCode === 201) cargadas.push(d);\n    else if (statusCode === 422) rechazadas.push(`${d}: ${typeof body?.detail === 'string' ? body.detail : JSON.stringify(body?.detail)}`);\n    else throw new Error(`La tienda respondió ${statusCode} al registrar una venta: ${JSON.stringify(body)}`);\n  });\n}\nconst lista = (titulo, xs) => xs.length ? [`${titulo} (${xs.length})`, ...xs.map(x => '- ' + x), ''] : [];\nconst revisar = [...p.dudosas.map(x => `línea ${x.linea}: ${x.detalle}. ${x.motivo}`), ...rechazadas];\nconst mensaje = [\n  'Hola, Marisa:', '',\n  `Se ha revisado el CSV del datáfono (${p.desde ?? '-'} a ${p.hasta ?? '-'}) contra las ventas y los abonos con tarjeta de la app.`, '',\n  ...lista('Cobros que faltaban y se han cargado como venta con tarjeta', cargadas),\n  ...lista('Cobros que ya estaban en la app', yaEstaban),\n  ...lista('REVÍSALO TÚ (no se ha cargado nada)', revisar),\n  ...lista('Líneas que no son cobros', p.ignoradas.map(x => `línea ${x.linea}: ${x.motivo}`)),\n  'Este correo lo envía el flujo \"Entrada CSV del datáfono\".',\n].join('\\n');\n// Los cinco primeros campos se llaman como las entradas de \"SUB - Enviar notificación\".\nreturn [{ json: {\n  destinatario: 'tienda', email: '',\n  asunto: revisar.length ? 'Datáfono: cobros revisados, con casos para ti' : 'Datáfono: cobros revisados sin incidencias',\n  mensaje, contexto: 'Entrada CSV del datáfono',\n  cargadas: cargadas.length, ya_estaban: yaEstaban.length, revisar: revisar.length, ignoradas: p.ignoradas.length,\n} }];"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000013",
+      "name": "Enviar informe a Marisa",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        100
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "EMBEoqRq6CbqJTYV",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000014",
+      "name": "¿Se envió el informe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a7b8c9d0-0000-4000-8000-000000000014",
+              "leftValue": "={{ $json.enviado === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f6a7b8c9-0000-4000-8000-000000000015",
+      "name": "Avisar de que no se envió",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        200
+      ],
+      "parameters": {
+        "errorMessage": "=Se revisó el CSV del datáfono, pero no se pudo enviar el informe a Marisa (motivo: {{ $json.motivo }}). El informe está en el nodo \"Redactar informe\"."
+      }
+    }
+  ],
+  "pinData": null,
+  "connections": {
+    "Ejecutar a mano": {
+      "main": [
+        [
+          {
+            "node": "Leer CSV del datáfono",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada noche a las 22:30": {
+      "main": [
+        [
+          {
+            "node": "Leer CSV del datáfono",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer CSV del datáfono": {
+      "main": [
+        [
+          {
+            "node": "Extraer líneas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer líneas": {
+      "main": [
+        [
+          {
+            "node": "Preparar cobros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar cobros": {
+      "main": [
+        [
+          {
+            "node": "Ventas en la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventas en la app": {
+      "main": [
+        [
+          {
+            "node": "Abonos en la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abonos en la app": {
+      "main": [
+        [
+          {
+            "node": "Conciliar cobros",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conciliar cobros": {
+      "main": [
+        [
+          {
+            "node": "Cobros a cargar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cobros a cargar": {
+      "main": [
+        [
+          {
+            "node": "¿Hay cobros nuevos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay cobros nuevos?": {
+      "main": [
+        [
+          {
+            "node": "Registrar venta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redactar informe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar venta": {
+      "main": [
+        [
+          {
+            "node": "Redactar informe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactar informe": {
+      "main": [
+        [
+          {
+            "node": "Enviar informe a Marisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar informe a Marisa": {
+      "main": [
+        [
+          {
+            "node": "¿Se envió el informe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se envió el informe?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Avisar de que no se envió",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "OusUpH8JpPQsG52u"
+  },
+  "versionId": "9663c203-ce84-415e-b5eb-d49b4b8db92d",
+  "meta": {},
+  "id": "UWyh5SJUZiHzUsrP",
+  "tags": []
+}
