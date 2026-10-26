@@ -141,17 +141,6 @@
       "typeVersion": 1,
       "position": [
         592,
-        336
-      ],
-      "id": "71cb8106-3c5d-4c31-836c-551846591389",
-      "name": "Flujo 04 (T-010)"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        592,
         688
       ],
       "id": "87f841d3-4922-4977-9591-2173953f1235",
@@ -244,6 +233,34 @@
       ],
       "id": "826cf110-3937-4a77-83ad-f188953cfa89",
       "name": "Ejecutar flujo 02"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "9OG75WYeQvJJiBHt",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/9OG75WYeQvJJiBHt",
+          "cachedResultName": "04 - Venta grande"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        592,
+        336
+      ],
+      "id": "72383568-3480-4ca0-90f8-fa6e78f29df0",
+      "name": "Ejecutar flujo 04"
     }
   ],
   "pinData": {},
@@ -277,7 +294,7 @@
         ],
         [
           {
-            "node": "Flujo 04 (T-010)",
+            "node": "Ejecutar flujo 04",
             "type": "main",
             "index": 0
           }
@@ -304,7 +321,7 @@
     "executionOrder": "v1",
     "binaryMode": "separate"
   },
-  "versionId": "6488ac6a-21c1-4d5d-a893-150bc98002d8",
+  "versionId": "e582fef8-f40f-4ccd-b243-7c79e435f39b",
   "meta": {
     "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
   },
