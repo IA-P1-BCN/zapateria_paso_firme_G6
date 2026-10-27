@@ -1,0 +1,197 @@
+{
+  "name": "SUB - Recaudado por periodo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "periodo"
+            },
+            {
+              "name": "dias",
+              "type": "number"
+            },
+            {
+              "name": "desde"
+            },
+            {
+              "name": "hasta"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        -48
+      ],
+      "id": "784d843a-3403-47b2-9add-6c637c97a4ec",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json;\nconst periodo = String(i.periodo ?? '').trim();\nconst hoy = $now.setZone('Europe/Madrid').startOf('day');\nconst fmt = (d) => d.toFormat('yyyy-MM-dd');\nlet desde;\nlet hasta = hoy;\n\nswitch (periodo) {\n  case 'hoy': desde = hoy; break;\n  case 'ayer': desde = hasta = hoy.minus({ days: 1 }); break;\n  case 'esta_semana': desde = hoy.startOf('week'); break;\n  case 'semana_pasada':\n    desde = hoy.startOf('week').minus({ weeks: 1 });\n    hasta = desde.plus({ days: 6 });\n    break;\n  case 'este_mes': desde = hoy.startOf('month'); break;\n  case 'mes_pasado':\n    desde = hoy.startOf('month').minus({ months: 1 });\n    hasta = desde.endOf('month').startOf('day');\n    break;\n  case 'ultimos_dias': {\n    const n = Number(i.dias);\n    if (!Number.isInteger(n) || n < 1 || n > 366) throw new Error(`Dias no válido: ${i.dias}`);\n    desde = hoy.minus({ days: n - 1 });\n    break;\n  }\n      case 'rango': {\n    desde = DateTime.fromISO(String(i.desde), { zone: 'Europe/Madrid' });\n    hasta = DateTime.fromISO(String(i.hasta), { zone: 'Europe/Madrid' });\n    if (!desde.isValid || !hasta.isValid) throw new Error(`Fechas no válidas: ${i.desde} / ${i.hasta}`);\n    if (hasta > hoy) hasta = hoy;\n    if (desde > hasta) throw new Error(`Rango no válido: ${i.desde} / ${i.hasta}`);\n    break;\n  }\n  default:\n    throw new Error(`Periodo desconocido: ${periodo}`);\n}\n\nreturn [{ json: { periodo, desde: fmt(desde), hasta: fmt(hasta) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -48
+      ],
+      "id": "81431b8a-4f24-46ea-bb75-601a085aad9b",
+      "name": "Calcular fechas"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/ventas",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Calcular fechas').first().json.desde }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Calcular fechas').first().json.hasta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        320,
+        -48
+      ],
+      "id": "69a5feb8-e7a8-4dd9-aeb9-434bda968c74",
+      "name": "Ventas del periodo",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/abonos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "desde",
+              "value": "={{ $('Calcular fechas').first().json.desde }}"
+            },
+            {
+              "name": "hasta",
+              "value": "={{ $('Calcular fechas').first().json.hasta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        592,
+        -64
+      ],
+      "id": "f05ed4fa-b625-4138-873a-45b8150171d3",
+      "name": "Abonos del periodo",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const f = $('Calcular fechas').first().json;\nconst ventas = $('Ventas del periodo').all();\nconst abonos = $('Abonos del periodo').all();\nconst formas = ['efectivo', 'tarjeta', 'bizum'];\n\nconst sumar = (items) => {\n  const t = { efectivo: 0, tarjeta: 0, bizum: 0 };\n  let n = 0;\n  for (const it of items) {\n    const r = it.json;\n    if (r.importe === undefined || r.importe === null) continue;\n    const forma = String(r.forma_pago ?? '').trim().toLowerCase();\n    if (!formas.includes(forma)) {\n      throw new Error(`Forma de pago desconocida: ${r.forma_pago}`);\n    }\n    t[forma] += Math.round(Number(r.importe) * 100);\n    n++;\n  }\n  return { t, n };\n};\n\nconst v = sumar(ventas);\nconst a = sumar(abonos);\nconst total = {};\nfor (const x of formas) total[x] = v.t[x] + a.t[x];\n\nconst suma = (o) => formas.reduce((s, x) => s + o[x], 0);\nconst fmt = (c) =>\n  `${(c / 100).toLocaleString('es-ES', {\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 2\n  })} €`;\nconst bloque = (titulo, o) =>\n  `${titulo}\\n` +\n  `  Efectivo: ${fmt(o.efectivo)}\\n` +\n  `  Tarjeta: ${fmt(o.tarjeta)}\\n` +\n  `  Bizum: ${fmt(o.bizum)}\\n` +\n  `  Total: ${fmt(suma(o))}`;\n\nconst fecha = (s) => s.split('-').reverse().join('/');\nconst rango = f.desde === f.hasta\n  ? `El ${fecha(f.desde)}`\n  : `Del ${fecha(f.desde)} al ${fecha(f.hasta)}`;\n\nconst movimientos = v.n + a.n;\nconst texto = movimientos > 0\n  ? `${rango}\\n\\n` +\n    bloque('Ventas directas', v.t) + '\\n\\n' +\n    bloque('Abonos de apartados', a.t) + '\\n\\n' +\n    bloque('Total', total)\n  : `${rango}\\n\\nNo hubo movimientos`;\n\nreturn [{ json: { periodo: f.periodo, desde: f.desde, hasta: f.hasta, ventas: v.n, abonos: a.n, movimientos, texto } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        -64
+      ],
+      "id": "c1db7265-34fc-4c9b-b3bb-e5f442c97fe1",
+      "name": "Sumar en céntimos"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Calcular fechas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular fechas": {
+      "main": [
+        [
+          {
+            "node": "Ventas del periodo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ventas del periodo": {
+      "main": [
+        [
+          {
+            "node": "Abonos del periodo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abonos del periodo": {
+      "main": [
+        [
+          {
+            "node": "Sumar en céntimos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HHKPnBEBF9SObOSU",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "51c35d5d-d7b9-4220-94f9-b2826a6b6373",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "4zTV7IvhNYwhb1gd",
+  "tags": []
+}
