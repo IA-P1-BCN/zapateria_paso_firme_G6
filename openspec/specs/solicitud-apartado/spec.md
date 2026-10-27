@@ -5,23 +5,19 @@ Un cliente pide un apartado desde casa con un formulario (`Solicitudes de aparta
 
 ## Requirements
 
-### Requirement: Crear apartado desde una solicitud
-El flujo SHALL crear el apartado en la app cuando la solicitud cumple las reglas.
-
-#### Scenario: Solicitud válida
-- **WHEN** llega una solicitud completa con abono inicial de 10 €
-- **THEN** se crea el apartado en la app
+### Requirement: Solicitud incompleta no se guarda
+El flujo SHALL NOT guardar una solicitud si falta nombre, modelo o talla, o si el teléfono o el correo no son válidos; SHALL avisar a Marisa.
 
 #### Scenario: Solicitud incompleta
-- **WHEN** falta el producto o el cliente
-- **THEN** no se crea nada y se avisa a Marisa
+- **WHEN** falta el producto o el cliente, o el teléfono o el correo no son válidos
+- **THEN** no se guarda nada y se avisa a Marisa
 
-### Requirement: Sin duplicados
-El flujo SHALL NOT crear dos apartados para la misma solicitud.
+### Requirement: Solicitud duplicada no se guarda
+El flujo SHALL NOT guardar una solicitud repetida (misma persona, modelo, talla y día); SHALL avisar a Marisa.
 
 #### Scenario: Solicitud repetida
-- **WHEN** se recibe dos veces la misma solicitud
-- **THEN** solo se crea un apartado
+- **WHEN** se recibe dos veces la misma solicitud en el mismo día
+- **THEN** no se guarda de nuevo y se avisa a Marisa
 
 ### Requirement: Solicitud pendiente hasta el abono inicial
 El flujo SHALL guardar cada solicitud válida como pendiente sin crear nada en la app, y SHALL crear el apartado solo cuando la tienda confirme el pago del abono inicial con el precio, el abono y la forma de pago.

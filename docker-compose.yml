@@ -23,6 +23,8 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - EMAIL_TIENDA=${EMAIL_TIENDA:-}
       - UMBRAL_VENTA_GRANDE=${UMBRAL_VENTA_GRANDE:-80}
+      # URL pública/base de n8n que usan los flujos para construir enlaces (p. ej. confirmar-solicitud)
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
     volumes:
       - n8n_data:/home/node/.n8n
 
