@@ -23,6 +23,7 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - EMAIL_TIENDA=${EMAIL_TIENDA:-}
       - UMBRAL_VENTA_GRANDE=${UMBRAL_VENTA_GRANDE:-80}
+      - TELEGRAM_CHAT_ID_MARISA=${TELEGRAM_CHAT_ID_MARISA:-}
     volumes:
       - n8n_data:/home/node/.n8n
 
