@@ -29,6 +29,7 @@ Este repositorio **no modifica la app**: construye con **n8n** todo lo que pasa 
 | 7 | Informe mensual | Programado, día 1 a las 08:00 | T-011 | Charlotte |
 | — | Migración del Excel de Marisa | Manual, una sola vez | T-012 | Anna |
 | — | Comparativa de dos modelos gratuitos | — | T-013 | Anna y Charlotte |
+| — | Asistente Marisa (Telegram con agente de IA) | Mensaje al bot de Marisa | T-017 | Charlotte |
 
 El estado de cada ticket está en el [tablero Kanban](https://github.com/orgs/IA-P1-BCN/projects/41). Alcance: niveles **Esencial** y **Medio** del enunciado.
 
@@ -73,6 +74,7 @@ Para pararlo: `docker compose down`. Para borrar también los datos: `docker com
 | `SEED` | `1` carga datos de ejemplo al arrancar; `0` arranca vacía (migración) |
 | `EMAIL_TIENDA` | Buzón de la tienda: recibe los avisos a Marisa y es también el remitente de los correos |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" (por defecto `80`) |
+| `TELEGRAM_CHAT_ID_MARISA` | Identificador del chat de Telegram de Marisa: el único que atiende `Asistente Marisa` (T-017) |
 
 Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 
@@ -82,6 +84,7 @@ Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 | `Correo salida` | SMTP | Cuenta de correo de la tienda |
 | `Correo entrada` | IMAP | La misma cuenta, para leer los avisos del banco |
 | `Modelo IA` | Groq | Clave personal de https://console.groq.com |
+| `Telegram Marisa` | Telegram | Token del bot de Marisa (se crea con BotFather; solo en la credencial, nunca en el repo) |
 
 Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores de las credenciales no se suben nunca al repositorio.
 
@@ -316,6 +319,32 @@ El flujo `Entrada CSV del datáfono` lee el CSV de cobros con tarjeta que export
 
 Al ejecutarlo otra vez no carga nada: reconoce las tres ventas que cargó por su número de operación.
 
+### Asistente de Telegram para Marisa (T-017)
+
+Marisa pregunta por Telegram en lenguaje natural ("¿cuánto se recaudó esta semana?", "¿qué apartados vencen este mes?", "¿ya pagó Carmen?") y un agente de IA responde con datos de la API. Solo lee: no registra abonos ni cambia nada.
+
+**Piezas** (todas en [`workflows/`](workflows/)):
+
+- `Asistente Marisa`: bot propio (`Telegram Marisa`) → `¿Es chat privado?` → `¿Es Marisa?` → agente `Responder pregunta` (Groq `openai/gpt-oss-20b`, credencial `Modelo IA`, memoria de los 4 últimos intercambios) → `Enviar respuesta`.
+- `SUB - Recaudado por periodo`: abonos y ventas de un periodo, sumados en céntimos por forma de pago.
+- `SUB - Vencimientos por periodo`: apartados `activo` cuya `fecha_limite` cae en un periodo.
+- Tercera herramienta, `Buscar apartado`: consulta `GET /api/apartados?q=` por cliente, producto, teléfono o número (cualquier estado).
+
+**Cómo se mantiene el control:**
+
+- **Solo responde a Marisa.** Un nodo determinista compara `chat.id` con `TELEGRAM_CHAT_ID_MARISA` y exige chat privado; si no coincide, no se consulta ni la API ni el modelo. Para la demo, pon el identificador real de Marisa (ella escribe una vez al bot) en vez del tuyo.
+- **El modelo no calcula.** Elige un `periodo` de una lista (`hoy`, `esta_semana`, `este_mes`…); un nodo Code calcula las fechas (zona Europe/Madrid, semana de lunes a domingo) y otro suma el dinero. El modelo copia el texto resultante, que empieza por el rango de fechas usado.
+- **Modelo caído:** Marisa recibe "Ahora mismo no puedo responder. Inténtalo de nuevo en unos minutos." sin cifras.
+- Cada pregunta vuelve a consultar la herramienta: el prompt prohíbe reutilizar cifras de respuestas anteriores.
+
+**Para ponerlo en marcha:**
+
+- Crea el bot con BotFather y la credencial `Telegram Marisa`. Rellena `TELEGRAM_CHAT_ID_MARISA` en `.env` y reinicia n8n (`docker compose up -d n8n`).
+- Telegram exige una URL pública HTTPS para el webhook: en local hace falta un túnel (por ejemplo `cloudflared tunnel --url http://localhost:5678`), que cambia en cada arranque.
+- Tras importar, vuelve a elegir los dos `SUB - …` en las herramientas `Recaudado por periodo` y `Vencimientos por periodo`, y asigna `08 - Error Workflow`. **Publica los sub-workflows** cada vez que los cambies: el agente usa la versión publicada.
+- Un bot solo admite un webhook: no uses el mismo bot que el asistente de clientes.
+- Groq recibe nombres de clientes y datos de apartados; las pruebas se hicieron con datos ficticios. El plan gratuito limita los tokens por minuto.
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -371,6 +400,7 @@ This repository **does not change the app**. It uses **n8n** to automate everyth
 | 7 | Monthly report | Scheduled, 1st of the month at 08:00 | T-011 | Charlotte |
 | — | Migration of Marisa's spreadsheet | Manual, run once | T-012 | Anna |
 | — | Comparison of two free AI models | — | T-013 | Anna and Charlotte |
+| — | Marisa's assistant (Telegram with an AI agent) | Message to Marisa's bot | T-017 | Charlotte |
 
 Ticket status lives on the [Kanban board](https://github.com/orgs/IA-P1-BCN/projects/41). Scope: the brief's **Essential** and **Intermediate** levels.
 
@@ -415,6 +445,7 @@ To stop: `docker compose down`. To also delete the data: `docker compose down -v
 | `SEED` | `1` loads sample data on start; `0` starts empty (migration) |
 | `EMAIL_TIENDA` | Shop mailbox: receives the alerts to Marisa and is also the sender of the emails |
 | `UMBRAL_VENTA_GRANDE` | Amount in € from which a sale counts as "large" (default `80`) |
+| `TELEGRAM_CHAT_ID_MARISA` | Telegram chat id of Marisa: the only chat served by `Asistente Marisa` (T-017) |
 
 Inside a workflow they are read with `{{ $env.NAME }}`.
 
@@ -424,6 +455,7 @@ Inside a workflow they are read with `{{ $env.NAME }}`.
 | `Correo salida` | SMTP | Shop email account |
 | `Correo entrada` | IMAP | Same account, to read bank notifications |
 | `Modelo IA` | Groq | Personal key from https://console.groq.com |
+| `Telegram Marisa` | Telegram | Token of Marisa's bot (created with BotFather; only in the credential, never in the repo) |
 
 Workflows only store the credential **name**. The `.env` file and credential values are never committed.
 
@@ -657,6 +689,32 @@ The `Entrada CSV del datáfono` workflow reads the card payments CSV exported by
 | Totals | — | Ignored |
 
 Running it again loads nothing: it recognises the three sales it loaded by their operation number.
+
+### Telegram assistant for Marisa (T-017)
+
+Marisa asks in plain language on Telegram ("how much did we take this week?", "which layaways expire this month?", "has Carmen paid?") and an AI agent answers with data from the API. It is read-only: it does not register payments or change anything.
+
+**Parts** (all in [`workflows/`](workflows/)):
+
+- `Asistente Marisa`: own bot (`Telegram Marisa`) → `¿Es chat privado?` → `¿Es Marisa?` → agent `Responder pregunta` (Groq `openai/gpt-oss-20b`, `Modelo IA` credential, memory of the last 4 exchanges) → `Enviar respuesta`.
+- `SUB - Recaudado por periodo`: payments and sales of a period, summed in cents by payment method.
+- `SUB - Vencimientos por periodo`: `activo` layaways whose `fecha_limite` falls in a period.
+- Third tool, `Buscar apartado`: `GET /api/apartados?q=` by customer, product, phone or number (any status).
+
+**How control is kept:**
+
+- **Only answers Marisa.** A deterministic node compares `chat.id` with `TELEGRAM_CHAT_ID_MARISA` and requires a private chat; otherwise neither the API nor the model is touched. For the demo, put Marisa's real id (she writes to the bot once) instead of yours.
+- **The model does not calculate.** It picks a `periodo` from a list (`hoy`, `esta_semana`, `este_mes`…); a Code node computes the dates (Europe/Madrid, week from Monday to Sunday) and another sums the money. The model copies the resulting text, which starts with the date range used.
+- **Model down:** Marisa gets "Ahora mismo no puedo responder. Inténtalo de nuevo en unos minutos." with no figures.
+- Every question calls the tool again: the prompt forbids reusing figures from earlier answers.
+
+**Setup:**
+
+- Create the bot with BotFather and the `Telegram Marisa` credential. Fill `TELEGRAM_CHAT_ID_MARISA` in `.env` and restart n8n (`docker compose up -d n8n`).
+- Telegram needs a public HTTPS URL for the webhook: locally you need a tunnel (for example `cloudflared tunnel --url http://localhost:5678`), which changes at every start.
+- After importing, pick the two `SUB - …` workflows again in the `Recaudado por periodo` and `Vencimientos por periodo` tools, and assign `08 - Error Workflow`. **Publish the sub-workflows** every time you change them: the agent uses the published version.
+- A bot only supports one webhook: do not reuse the customer assistant's bot.
+- Groq receives customer names and layaway data; tests used fictitious data. The free plan limits tokens per minute.
 
 ### Repository layout
 
