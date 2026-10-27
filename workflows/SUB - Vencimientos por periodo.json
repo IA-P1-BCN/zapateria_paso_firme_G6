@@ -1,0 +1,143 @@
+{
+  "name": "SUB - Vencimientos por periodo",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "periodo"
+            },
+            {
+              "name": "dias",
+              "type": "number"
+            },
+            {
+              "name": "desde"
+            },
+            {
+              "name": "hasta"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        -48
+      ],
+      "id": "af00794a-ad23-4e98-9e17-aa3ac325cf6c",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "const i = $input.first().json;\nconst periodo = String(i.periodo ?? '').trim();\nconst hoy = $now.setZone('Europe/Madrid').startOf('day');\nconst fmt = (d) => d.toFormat('yyyy-MM-dd');\nlet desde;\nlet hasta;\n\nswitch (periodo) {\n  case 'hoy': desde = hasta = hoy; break;\n  case 'manana': desde = hasta = hoy.plus({ days: 1 }); break;\n  case 'esta_semana':\n    desde = hoy.startOf('week');\n    hasta = desde.plus({ days: 6 });\n    break;\n  case 'proxima_semana':\n    desde = hoy.startOf('week').plus({ weeks: 1 });\n    hasta = desde.plus({ days: 6 });\n    break;\n  case 'este_mes':\n    desde = hoy.startOf('month');\n    hasta = hoy.endOf('month').startOf('day');\n    break;\n  case 'mes_siguiente':\n    desde = hoy.startOf('month').plus({ months: 1 });\n    hasta = desde.endOf('month').startOf('day');\n    break;\n  case 'proximos_dias': {\n    const n = Number(i.dias);\n    if (!Number.isInteger(n) || n < 1 || n > 366) throw new Error(`Dias no válido: ${i.dias}`);\n    desde = hoy;\n    hasta = hoy.plus({ days: n });\n    break;\n  }\n  case 'rango': {\n    desde = DateTime.fromISO(String(i.desde), { zone: 'Europe/Madrid' });\n    hasta = DateTime.fromISO(String(i.hasta), { zone: 'Europe/Madrid' });\n    if (!desde.isValid || !hasta.isValid) throw new Error(`Fechas no válidas: ${i.desde} / ${i.hasta}`);\n    if (desde > hasta) throw new Error(`Rango no válido: ${i.desde} / ${i.hasta}`);\n    break;\n  }\n  default:\n    throw new Error(`Periodo desconocido: ${periodo}`);\n}\n\nreturn [{ json: { periodo, hoy: fmt(hoy), desde: fmt(desde), hasta: fmt(hasta) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -48
+      ],
+      "id": "c114b6d7-8d57-4abf-8e18-bc481e003e87",
+      "name": "Calcular fechas"
+    },
+    {
+      "parameters": {
+        "url": "http://tienda:8000/api/apartados?estado=activo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        320,
+        -48
+      ],
+      "id": "9411cb39-194f-4b62-a41f-f249e06ecda4",
+      "name": "Apartados activos",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "IClh8HOEGTJdTbwY",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const f = $('Calcular fechas').first().json;\nconst MAX = 30;\nconst fecha = (s) => s.split('-').reverse().join('/');\nconst euros = (n) =>\n  `${Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;\n\nconst lista = $('Apartados activos').all()\n  .map((i) => i.json)\n  .filter((a) => a.id !== undefined && a.fecha_limite >= f.desde && a.fecha_limite <= f.hasta);\n\nconst rango = f.desde === f.hasta\n  ? `El ${fecha(f.desde)}`\n  : `Del ${fecha(f.desde)} al ${fecha(f.hasta)}`;\n\nconst linea = (a) =>\n  `- #${a.id} ${a.cliente}: ${a.producto} (talla ${a.talla}) · pendiente ${euros(a.pendiente)} · límite ${fecha(a.fecha_limite)}` +\n  (a.fecha_limite < f.hoy ? ' (plazo ya pasado, sigue activo)' : '');\n\nconst lineas = lista.slice(0, MAX).map(linea);\nif (lista.length > MAX) lineas.push(`… y ${lista.length - MAX} más`);\n\nconst texto = lista.length === 0\n  ? `${rango} no vence ningún apartado activo`\n  : `${rango} vencen ${lista.length} apartado(s) activo(s):\\n\\n${lineas.join('\\n')}`;\n\nreturn [{ json: { periodo: f.periodo, desde: f.desde, hasta: f.hasta, apartados: lista.length, texto } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        -48
+      ],
+      "id": "97c2b2f3-c859-4feb-817c-e09167ded331",
+      "name": "Filtrar por fecha límite"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Calcular fechas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular fechas": {
+      "main": [
+        [
+          {
+            "node": "Apartados activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apartados activos": {
+      "main": [
+        [
+          {
+            "node": "Filtrar por fecha límite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "HHKPnBEBF9SObOSU",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "b48eef40-8ece-491a-bc1f-412ccacdbcc6",
+  "meta": {
+    "instanceId": "6356b352d4c30086460756747056a226b997a3c628fd83967426c3e09ff195e1"
+  },
+  "nodeGroups": [],
+  "id": "ZknivDAlrQJWNQei",
+  "tags": [
+    {
+      "updatedAt": "2026-10-27T11:30:21.711Z",
+      "createdAt": "2026-10-27T11:30:03.053Z",
+      "id": "tC4yUcRs766KrLee",
+      "name": "Marisa Assistant"
+    }
+  ]
+}
