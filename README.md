@@ -82,6 +82,7 @@ Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 | `Correo salida` | SMTP | Cuenta de correo de la tienda |
 | `Correo entrada` | IMAP | La misma cuenta, para leer los avisos del banco |
 | `Modelo IA` | Groq | Clave personal de https://console.groq.com |
+| `Acceso Marisa` | Basic Auth | Usuario y contraseña del formulario de confirmación de solicitudes (T-018) |
 
 Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores de las credenciales no se suben nunca al repositorio.
 
@@ -316,6 +317,33 @@ El flujo `Entrada CSV del datáfono` lee el CSV de cobros con tarjeta que export
 
 Al ejecutarlo otra vez no carga nada: reconoce las tres ventas que cargó por su número de operación.
 
+### Solicitudes de apartado (T-018)
+
+Un cliente puede pedir un apartado desde casa con un formulario. El apartado **no se crea hasta que paga el abono inicial**: la app exige al menos 5 € para crearlo y no se da por cobrado dinero que no ha llegado. Son dos flujos y una tabla de n8n:
+
+1. **`Solicitudes de apartado`** (formulario público `/form/solicitud-apartado`): nombre, teléfono, correo (opcional), modelo, talla y comentario.
+   - **Nueva:** se guarda como `pendiente` en la tabla `solicitudes_apartado` con un número de solicitud. Marisa recibe un aviso con el número y el enlace para confirmarla, y el cliente, si dejó correo, un acuse de recibo.
+   - **Incompleta** (falta nombre, modelo o talla, o el teléfono o el correo no son válidos) o **repetida** (misma persona, modelo, talla y día): no se guarda y se avisa a Marisa.
+   - No toca la app.
+2. **`Confirmar solicitud de apartado`** (formulario `/form/confirmar-solicitud`, **protegido con usuario y contraseña**, credencial `Acceso Marisa`): cuando el cliente paga, Marisa rellena el número de solicitud, el precio, el abono inicial y la forma de pago.
+   - Comprueba que la solicitud existe y está pendiente, que el abono es de al menos 5 € y no supera el precio, y que la forma de pago es válida.
+   - Si todo está bien, crea el apartado (`POST /api/apartados`) y marca la solicitud como `confirmada`. La app emite `apartado.creado` y el flujo 01 manda la confirmación al cliente.
+   - Una solicitud ya confirmada no crea otro apartado. Marisa recibe siempre un correo con el resultado.
+
+**Para ponerlo en marcha:**
+
+- En n8n, *Data tables* → crea la tabla `solicitudes_apartado` con estas columnas: `clave`, `cliente`, `telefono`, `email`, `producto`, `talla`, `comentario`, `fecha` y `estado` (texto), y `apartado_id` (número). Los flujos la buscan por nombre.
+- Crea la credencial `Acceso Marisa` (*Basic Auth*) con el usuario y la contraseña de Marisa. Tras importar, elige `SUB - Enviar notificación` en los nodos de aviso y `08 - Error Workflow` en *Settings → Error workflow*.
+- Los formularios solo funcionan con los flujos **publicados**, y en una sola instancia. Para probar sin formulario, cada flujo tiene un disparador manual con ejemplos.
+
+**Resultados con los ejemplos de los propios flujos** (tienda con los datos de la migración de T-012):
+
+| Prueba | Resultado |
+|---|---|
+| 4 solicitudes: Carmen (con correo), Pedro (sin correo), Ana sin modelo, Carmen repetida | Se guardan la nº 1 (Carmen) y la nº 2 (Pedro) como pendientes; Ana y la repetida no se guardan. 5 avisos: 4 a Marisa y el acuse de recibo a Carmen |
+| 4 confirmaciones: nº 1 (89,90 €, 10 € por Bizum) dos veces, nº 2 con 3 € de abono, nº 99 | Se crea el **apartado #8** de Carmen y la nº 1 queda `confirmada`; la repetida, la de 3 € (mínimo 5 €) y la nº 99 (no existe) no crean nada. El flujo 01 manda la confirmación a Carmen |
+| Las mismas solicitudes y confirmaciones otra vez | No se guarda ninguna solicitud ni se crea ningún apartado: «ya está confirmada (apartado #8)» |
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -424,6 +452,7 @@ Inside a workflow they are read with `{{ $env.NAME }}`.
 | `Correo salida` | SMTP | Shop email account |
 | `Correo entrada` | IMAP | Same account, to read bank notifications |
 | `Modelo IA` | Groq | Personal key from https://console.groq.com |
+| `Acceso Marisa` | Basic Auth | Username and password for the request confirmation form (T-018) |
 
 Workflows only store the credential **name**. The `.env` file and credential values are never committed.
 
@@ -657,6 +686,33 @@ The `Entrada CSV del datáfono` workflow reads the card payments CSV exported by
 | Totals | — | Ignored |
 
 Running it again loads nothing: it recognises the three sales it loaded by their operation number.
+
+### Layaway requests (T-018)
+
+A customer can request a layaway from home through a form. The layaway **is not created until they pay the down payment**: the app needs at least €5 to create it, and money that has not arrived is never recorded as paid. It uses two workflows and an n8n data table:
+
+1. **`Solicitudes de apartado`** (public form `/form/solicitud-apartado`): name, phone, email (optional), model, size and comment.
+   - **New:** saved as `pendiente` in the `solicitudes_apartado` table with a request number. Marisa gets an alert with the number and the confirmation link, and the customer, if they left an email, an acknowledgement.
+   - **Incomplete** (missing name, model or size, or an invalid phone or email) or **repeated** (same person, model, size and day): not saved, and Marisa is alerted.
+   - It does not touch the app.
+2. **`Confirmar solicitud de apartado`** (form `/form/confirmar-solicitud`, **protected with a username and password**, `Acceso Marisa` credential): when the customer pays, Marisa enters the request number, price, down payment and payment method.
+   - It checks that the request exists and is pending, that the down payment is at least €5 and not above the price, and that the payment method is valid.
+   - If everything is fine, it creates the layaway (`POST /api/apartados`) and marks the request as `confirmada`. The app emits `apartado.creado` and workflow 01 sends the customer the confirmation.
+   - An already confirmed request does not create another layaway. Marisa always gets an email with the result.
+
+**To run it:**
+
+- In n8n, *Data tables* → create the `solicitudes_apartado` table with these columns: `clave`, `cliente`, `telefono`, `email`, `producto`, `talla`, `comentario`, `fecha` and `estado` (text), and `apartado_id` (number). The workflows look it up by name.
+- Create the `Acceso Marisa` credential (*Basic Auth*) with Marisa's username and password. After importing, select `SUB - Enviar notificación` in the alert nodes and `08 - Error Workflow` in *Settings → Error workflow*.
+- The forms only work with the workflows **published**, on a single instance. To test without the form, each workflow has a manual trigger with examples.
+
+**Results with the workflows' own examples** (shop with the T-012 migration data):
+
+| Test | Result |
+|---|---|
+| 4 requests: Carmen (with email), Pedro (no email), Ana without a model, Carmen repeated | Requests 1 (Carmen) and 2 (Pedro) are saved as pending; Ana's and the repeated one are not. 5 alerts: 4 to Marisa and the acknowledgement to Carmen |
+| 4 confirmations: no. 1 (€89.90, €10 by Bizum) twice, no. 2 with a €3 down payment, no. 99 | **Layaway #8** is created for Carmen and no. 1 becomes `confirmada`; the repeated one, the €3 one (minimum €5) and no. 99 (does not exist) create nothing. Workflow 01 sends Carmen the confirmation |
+| The same requests and confirmations again | No request is saved and no layaway is created: "ya está confirmada (apartado #8)" |
 
 ### Repository layout
 

@@ -1,0 +1,583 @@
+{
+  "name": "Solicitudes de apartado",
+  "nodes": [
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000001",
+      "name": "Probar con solicitudes de ejemplo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000002",
+      "name": "Solicitudes de ejemplo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Una válida con correo, una sin correo, una incompleta y una repetida de la primera.\nreturn [\n  {\n    \"cliente\": \"carmen ruiz\",\n    \"telefono\": \"612 345 001\",\n    \"email\": \"carmen@example.com\",\n    \"producto\": \"Botín piel marrón\",\n    \"talla\": \"38\",\n    \"comentario\": \"\"\n  },\n  {\n    \"cliente\": \"Pedro Sanz\",\n    \"telefono\": \"612345005\",\n    \"email\": \"\",\n    \"producto\": \"Bota agua niño\",\n    \"talla\": \"31\",\n    \"comentario\": \"Para mi hijo\"\n  },\n  {\n    \"cliente\": \"Ana Torres\",\n    \"telefono\": \"612345009\",\n    \"email\": \"\",\n    \"producto\": \"\",\n    \"talla\": \"39\",\n    \"comentario\": \"\"\n  },\n  {\n    \"cliente\": \"Carmen Ruiz\",\n    \"telefono\": \"612345001\",\n    \"email\": \"carmen@example.com\",\n    \"producto\": \"botin piel marron\",\n    \"talla\": \"38\",\n    \"comentario\": \"\"\n  }\n].map(json => ({ json }));"
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000003",
+      "name": "Formulario de solicitud",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "authentication": "none",
+        "formTitle": "Pide tu apartado en Paso Firme",
+        "formDescription": "Déjanos tus datos y el modelo que quieres apartar. El apartado queda confirmado cuando pagas el abono inicial (mínimo 5 €) en la tienda o por Bizum.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre y apellidos",
+              "fieldName": "cliente",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Teléfono",
+              "fieldName": "telefono",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Correo electrónico",
+              "fieldName": "email",
+              "requiredField": false,
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Modelo",
+              "fieldName": "producto",
+              "requiredField": true,
+              "placeholder": "Por ejemplo: Botín piel marrón"
+            },
+            {
+              "fieldLabel": "Talla",
+              "fieldName": "talla",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Comentario",
+              "fieldName": "comentario",
+              "requiredField": false,
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "path": "solicitud-apartado",
+          "appendAttribution": false,
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Gracias. Hemos recibido tu solicitud. El apartado queda confirmado cuando pagues el abono inicial (mínimo 5 €) en la tienda o por Bizum."
+            }
+          }
+        }
+      },
+      "webhookId": "a7f3c2e1-5b4d-4e6f-8a9b-0c1d2e3f4a5b"
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000004",
+      "name": "Preparar solicitud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const sinAcentos = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '');\n\nconst clave = s => sinAcentos(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\n// Busca un campo del formulario por su nombre interno o por su etiqueta, sin depender de acentos ni mayúsculas.\nfunction campo(datos, ...nombres) {\n  const k = Object.keys(datos).find(c => nombres.includes(clave(c)));\n  return k === undefined ? '' : String(datos[k] ?? '').trim();\n}\n\n// carmen ruiz → Carmen Ruiz\nfunction nombre(s) {\n  return String(s ?? '').trim().replace(/\\s+/g, ' ').toLowerCase().split(' ')\n    .map((p, i) => i > 0 && ['de', 'del', 'la', 'y'].includes(p) ? p : p.charAt(0).toUpperCase() + p.slice(1))\n    .join(' ');\n}\n\nfunction prepararSolicitud(datos, hoy) {\n  const s = {\n    cliente: nombre(campo(datos, 'cliente', 'nombre y apellidos', 'nombre')),\n    telefono: campo(datos, 'telefono').replace(/[^\\d+]/g, ''),\n    email: campo(datos, 'email', 'correo electronico', 'correo').toLowerCase(),\n    producto: campo(datos, 'producto', 'modelo'),\n    talla: campo(datos, 'talla'),\n    comentario: campo(datos, 'comentario'),\n    fecha: hoy,\n  };\n  const faltan = [];\n  if (!s.cliente) faltan.push('nombre');\n  if (!/^\\+?\\d{9,15}$/.test(s.telefono)) faltan.push('teléfono válido');\n  if (!s.producto) faltan.push('modelo');\n  if (!s.talla) faltan.push('talla');\n  if (s.email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(s.email)) faltan.push('correo válido');\n  s.clave = [clave(s.cliente), s.telefono, clave(s.producto), clave(s.talla), s.fecha].join('|');\n  return { ...s, faltan };\n}\n\nconst hoy = $now.setZone('Europe/Madrid').toISODate();\nreturn $input.all().map(i => ({ json: prepararSolicitud(i.json, hoy) }));"
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000005",
+      "name": "Solicitudes guardadas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "solicitudes_apartado"
+        },
+        "returnAll": true
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000006",
+      "name": "Decidir solicitudes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "jsCode": "function decidirSolicitudes(solicitudes, guardadas) {\n  const vistas = new Set(guardadas.map(g => g.clave));\n  return solicitudes.map(s => {\n    if (s.faltan.length) return { ...s, accion: 'incompleta', motivo: `Falta: ${s.faltan.join(', ')}` };\n    if (vistas.has(s.clave)) return { ...s, accion: 'repetida', motivo: 'Ya hay una solicitud de esta persona para este modelo y talla hoy' };\n    vistas.add(s.clave);\n    return { ...s, accion: 'nueva', motivo: '' };\n  });\n}\n\n// Se ven todas las solicitudes del lote a la vez para no guardar dos veces la misma.\nconst solicitudes = $('Preparar solicitud').all().map(i => i.json);\nconst guardadas = $('Solicitudes guardadas').all().map(i => i.json).filter(g => g.id !== undefined);\nreturn decidirSolicitudes(solicitudes, guardadas).map(json => ({ json }));"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000007",
+      "name": "¿Es nueva?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9d8e7f6-0000-4000-8000-000000000001",
+              "leftValue": "={{ $json.accion === 'nueva' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000008",
+      "name": "Guardar solicitud",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "solicitudes_apartado"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "clave": "={{ $json.clave }}",
+            "cliente": "={{ $json.cliente }}",
+            "telefono": "={{ $json.telefono }}",
+            "email": "={{ $json.email }}",
+            "producto": "={{ $json.producto }}",
+            "talla": "={{ $json.talla }}",
+            "comentario": "={{ $json.comentario }}",
+            "fecha": "={{ $json.fecha }}",
+            "estado": "pendiente"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "clave",
+              "displayName": "clave",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente",
+              "displayName": "cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "producto",
+              "displayName": "producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "talla",
+              "displayName": "talla",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "comentario",
+              "displayName": "comentario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "apartado_id",
+              "displayName": "apartado_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000009",
+      "name": "Redactar avisos de solicitud",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ],
+      "parameters": {
+        "jsCode": "function avisosSolicitud(s, urlConfirmar) {\n  const datos = [`- Cliente: ${s.cliente || '(sin nombre)'}`, `- Teléfono: ${s.telefono || '(sin teléfono)'}`,\n    `- Correo: ${s.email || '(no lo ha dejado)'}`, `- Modelo y talla: ${s.producto || '?'} · ${s.talla || '?'}`,\n    ...(s.comentario ? [`- Comentario: ${s.comentario}`] : [])];\n  if (s.accion !== 'nueva') {\n    return [{ destinatario: 'tienda', email: '', contexto: 'Solicitud de apartado',\n      asunto: `Solicitud de apartado NO guardada: ${s.cliente || 'sin nombre'}`,\n      mensaje: ['Hola, Marisa:', '', `Ha llegado una solicitud de apartado que no se ha guardado. Motivo: ${s.motivo}.`, '',\n        ...datos, '', 'Si hace falta, llama a la clienta.', '', 'Este aviso lo envía el flujo \"Solicitudes de apartado\".'].join('\\n') }];\n  }\n  const avisos = [{ destinatario: 'tienda', email: '', contexto: `Solicitud ${s.id}`,\n    asunto: `Nueva solicitud de apartado nº ${s.id}: ${s.cliente}, ${s.producto} T${s.talla}`,\n    mensaje: ['Hola, Marisa:', '', `Hay una solicitud de apartado nueva (nº ${s.id}). Todavía no hay apartado en la app: se crea cuando la clienta pague el abono inicial.`, '',\n      ...datos, '', `Cuando pague, confírmala aquí con el nº ${s.id}, el precio, el abono y la forma de pago:`, urlConfirmar, '',\n      'Este aviso lo envía el flujo \"Solicitudes de apartado\".'].join('\\n') }];\n  if (s.email) {\n    avisos.push({ destinatario: 'cliente', email: s.email, contexto: `Solicitud ${s.id}`,\n      asunto: 'Hemos recibido tu solicitud de apartado en Paso Firme',\n      mensaje: [`Hola, ${s.cliente.split(' ')[0]}:`, '', `Hemos recibido tu solicitud para apartar ${s.producto} (talla ${s.talla}).`,\n        'El apartado queda confirmado cuando pagues el abono inicial, de 5 € como mínimo, en la tienda o por Bizum. Te lo confirmaremos por correo.', '',\n        `Número de solicitud: ${s.id}`, '', 'Zapatería Paso Firme'].join('\\n') });\n  }\n  return avisos;\n}\n\n// Las nuevas llegan ya guardadas (con su número); las incompletas y repetidas, tal cual.\nconst base = $env.N8N_EDITOR_BASE_URL || 'http://localhost:5678';\nconst url = base.replace(/\\/$/, '') + '/form/confirmar-solicitud';\nreturn $input.all().flatMap(i => {\n  const s = i.json.accion ? i.json : { ...i.json, accion: 'nueva' };\n  return avisosSolicitud(s, url).map(json => ({ json }));\n});"
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000010",
+      "name": "Enviar avisos",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "EMBEoqRq6CbqJTYV",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000011",
+      "name": "¿Algún aviso falló?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1980,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9d8e7f6-0000-4000-8000-000000000002",
+              "leftValue": "={{ $json.motivo === 'error_envio' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a1c3d4e5-0000-4000-8000-000000000012",
+      "name": "Avisar de que no se envió",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "errorMessage": "=No se pudo enviar un aviso del flujo \"Solicitudes de apartado\" (motivo: {{ $json.motivo }}). El aviso está en el nodo anterior al envío."
+      }
+    }
+  ],
+  "pinData": null,
+  "connections": {
+    "Probar con solicitudes de ejemplo": {
+      "main": [
+        [
+          {
+            "node": "Solicitudes de ejemplo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitudes de ejemplo": {
+      "main": [
+        [
+          {
+            "node": "Preparar solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulario de solicitud": {
+      "main": [
+        [
+          {
+            "node": "Preparar solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar solicitud": {
+      "main": [
+        [
+          {
+            "node": "Solicitudes guardadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitudes guardadas": {
+      "main": [
+        [
+          {
+            "node": "Decidir solicitudes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir solicitudes": {
+      "main": [
+        [
+          {
+            "node": "¿Es nueva?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es nueva?": {
+      "main": [
+        [
+          {
+            "node": "Guardar solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redactar avisos de solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar solicitud": {
+      "main": [
+        [
+          {
+            "node": "Redactar avisos de solicitud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactar avisos de solicitud": {
+      "main": [
+        [
+          {
+            "node": "Enviar avisos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar avisos": {
+      "main": [
+        [
+          {
+            "node": "¿Algún aviso falló?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Algún aviso falló?": {
+      "main": [
+        [
+          {
+            "node": "Avisar de que no se envió",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "OusUpH8JpPQsG52u"
+  },
+  "versionId": "1dd47abd-60ea-4174-902e-4d69e54a6857",
+  "meta": {},
+  "id": "EQDEjyPEj3AbQXXN",
+  "tags": []
+}
