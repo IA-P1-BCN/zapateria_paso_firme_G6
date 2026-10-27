@@ -1,0 +1,723 @@
+{
+  "name": "Confirmar solicitud de apartado",
+  "nodes": [
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000001",
+      "name": "Probar con confirmaciones de ejemplo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000002",
+      "name": "Confirmaciones de ejemplo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Confirma la solicitud 1 (y la repite), la 2 con un abono por debajo del mínimo y una que no existe.\nreturn [\n  {\n    \"numero\": \"1\",\n    \"precio\": \"89,90\",\n    \"abono\": \"10\",\n    \"forma_pago\": \"bizum\"\n  },\n  {\n    \"numero\": \"1\",\n    \"precio\": \"89,90\",\n    \"abono\": \"10\",\n    \"forma_pago\": \"bizum\"\n  },\n  {\n    \"numero\": \"2\",\n    \"precio\": \"29,95\",\n    \"abono\": \"3\",\n    \"forma_pago\": \"efectivo\"\n  },\n  {\n    \"numero\": \"99\",\n    \"precio\": \"50\",\n    \"abono\": \"10\",\n    \"forma_pago\": \"efectivo\"\n  }\n].map(json => ({ json }));"
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000003",
+      "name": "Formulario de confirmación",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        200
+      ],
+      "parameters": {
+        "authentication": "basicAuth",
+        "formTitle": "Confirmar una solicitud de apartado",
+        "formDescription": "Solo para la tienda. Rellénalo cuando la clienta haya pagado el abono inicial.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nº de solicitud",
+              "fieldName": "numero",
+              "requiredField": true,
+              "fieldType": "number"
+            },
+            {
+              "fieldLabel": "Precio (€)",
+              "fieldName": "precio",
+              "requiredField": true,
+              "placeholder": "89,90"
+            },
+            {
+              "fieldLabel": "Abono inicial (€)",
+              "fieldName": "abono",
+              "requiredField": true,
+              "placeholder": "Mínimo 5"
+            },
+            {
+              "fieldLabel": "Forma de pago",
+              "fieldName": "forma_pago",
+              "requiredField": true,
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "efectivo"
+                  },
+                  {
+                    "option": "tarjeta"
+                  },
+                  {
+                    "option": "bizum"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "path": "confirmar-solicitud",
+          "appendAttribution": false,
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Recibido. Te llegará un correo con el resultado."
+            }
+          }
+        }
+      },
+      "webhookId": "b8e4d3f2-6c5e-4f7a-9b0c-1d2e3f4a5b6c",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "kEbxzKUk3CEjSmVS",
+          "name": "Acceso Marisa"
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000004",
+      "name": "Preparar confirmación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const sinAcentos = s => String(s ?? '').normalize('NFD').replace(/\\p{M}/gu, '');\n\nconst clave = s => sinAcentos(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();\n\n// Busca un campo del formulario por su nombre interno o por su etiqueta, sin depender de acentos ni mayúsculas.\nfunction campo(datos, ...nombres) {\n  const k = Object.keys(datos).find(c => nombres.includes(clave(c)));\n  return k === undefined ? '' : String(datos[k] ?? '').trim();\n}\n\nfunction numero(s) {\n  let t = String(s ?? '').replace(/[€\\s]/g, '');\n  if (t.includes(',')) t = t.replace(/\\./g, '').replace(',', '.');\n  return /^\\d+(\\.\\d+)?$/.test(t) ? Math.round(Number(t) * 100) / 100 : null;\n}\n\nfunction prepararConfirmacion(datos) {\n  return {\n    numero: numero(campo(datos, 'numero', 'n de solicitud', 'no de solicitud', 'numero de solicitud')),\n    precio: numero(campo(datos, 'precio')),\n    abono: numero(campo(datos, 'abono', 'abono inicial')),\n    forma_pago: clave(campo(datos, 'forma pago', 'forma de pago')),\n  };\n}\n\nreturn $input.all().map(i => ({ json: prepararConfirmacion(i.json) }));"
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000005",
+      "name": "Solicitudes guardadas",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        100
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "solicitudes_apartado"
+        },
+        "returnAll": true
+      },
+      "executeOnce": true,
+      "alwaysOutputData": true
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000006",
+      "name": "Decidir confirmaciones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const euros = n => `${Number(n).toFixed(2).replace('.', ',')} €`;\n\nconst MINIMO_ABONO = 5;\n\nconst FORMAS_PAGO = ['efectivo', 'tarjeta', 'bizum'];\n\nfunction decidirConfirmaciones(confirmaciones, guardadas) {\n  const confirmadasAhora = new Set();\n  return confirmaciones.map(c => {\n    const s = guardadas.find(g => Number(g.id) === c.numero);\n    const no = motivo => ({ ...c, solicitud: s ?? null, accion: 'rechazar', motivo });\n    if (!s) return no(`No existe la solicitud nº ${c.numero ?? '?'}`);\n    if (s.estado === 'confirmada' || confirmadasAhora.has(s.id)) {\n      return no(`La solicitud nº ${s.id} ya está confirmada${s.apartado_id ? ` (apartado #${s.apartado_id})` : ''}: no se crea otro apartado`);\n    }\n    if (c.precio === null || c.precio <= 0) return no('El precio no es un número mayor que 0');\n    if (c.abono === null || c.abono < MINIMO_ABONO) return no(`El abono inicial tiene que ser de al menos ${euros(MINIMO_ABONO)}`);\n    if (c.abono > c.precio) return no('El abono inicial no puede superar el precio');\n    if (!FORMAS_PAGO.includes(c.forma_pago)) return no('La forma de pago tiene que ser efectivo, tarjeta o bizum');\n    confirmadasAhora.add(s.id);\n    return { ...c, solicitud: s, accion: 'crear', motivo: '',\n      body: { cliente: s.cliente, telefono: s.telefono || null, email: s.email || null, producto: s.producto,\n              talla: s.talla, precio: c.precio, abono_inicial: c.abono, forma_pago: c.forma_pago } };\n  });\n}\n\n// Una solicitud ya confirmada (o confirmada antes en este mismo lote) no crea otro apartado.\nconst confirmaciones = $('Preparar confirmación').all().map(i => i.json);\nconst guardadas = $('Solicitudes guardadas').all().map(i => i.json).filter(g => g.id !== undefined);\nreturn decidirConfirmaciones(confirmaciones, guardadas).map(json => ({ json }));"
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000007",
+      "name": "¿Se crea el apartado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9d8e7f6-0000-4000-8000-000000000003",
+              "leftValue": "={{ $json.accion === 'crear' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000008",
+      "name": "Crear apartado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://tienda:8000/api/apartados",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 250
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "CV689AM3QBsupF5R",
+          "name": "Tienda API"
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000009",
+      "name": "Comprobar creación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 201: apartado creado. 422: la app lo rechaza (detail puede ser texto o lista). Otro código es un error.\nconst previo = $('Decidir confirmaciones').item.json;\nconst { statusCode, body } = $json;\nif (statusCode === 201) return { json: { ...previo, creado: true, apartado: body } };\nif (statusCode === 422) {\n  const d = body?.detail;\n  return { json: { ...previo, creado: false, motivo: `La app no lo acepta: ${typeof d === 'string' ? d : JSON.stringify(d)}` } };\n}\nthrow new Error(`La tienda respondió ${statusCode} al crear el apartado: ${JSON.stringify(body)}`);"
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000010",
+      "name": "¿Se creó?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9d8e7f6-0000-4000-8000-000000000004",
+              "leftValue": "={{ $json.creado === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000011",
+      "name": "Marcar como confirmada",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        -100
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "solicitudes_apartado"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.solicitud.id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "estado": "confirmada",
+            "apartado_id": "={{ $json.apartado.id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "clave",
+              "displayName": "clave",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cliente",
+              "displayName": "cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "producto",
+              "displayName": "producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "talla",
+              "displayName": "talla",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "comentario",
+              "displayName": "comentario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "apartado_id",
+              "displayName": "apartado_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000012",
+      "name": "Redactar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        100
+      ],
+      "parameters": {
+        "jsCode": "const euros = n => `${Number(n).toFixed(2).replace('.', ',')} €`;\n\nfunction avisoResultado(r) {\n  const s = r.solicitud;\n  const quien = s ? `${s.cliente}, ${s.producto} T${s.talla}` : `solicitud nº ${r.numero ?? '?'}`;\n  if (r.creado) {\n    const a = r.apartado;\n    return { destinatario: 'tienda', email: '', contexto: `Solicitud ${s.id}`,\n      asunto: `Apartado #${a.id} creado desde la solicitud nº ${s.id}`,\n      mensaje: ['Hola, Marisa:', '', `Se ha creado el apartado #${a.id} (${quien}).`,\n        `Precio ${euros(a.precio)} · abonado ${euros(a.abonado)} · faltan ${euros(a.pendiente)} · vence el ${a.fecha_limite}.`,\n        s.email ? 'La clienta recibirá la confirmación del apartado por correo.' : 'La clienta no dejó correo: avísala tú.', '',\n        'Este aviso lo envía el flujo \"Confirmar solicitud de apartado\".'].join('\\n') };\n  }\n  return { destinatario: 'tienda', email: '', contexto: s ? `Solicitud ${s.id}` : 'Confirmación de solicitud',\n    asunto: `Apartado NO creado: ${quien}`,\n    mensaje: ['Hola, Marisa:', '', `No se ha creado el apartado (${quien}).`, `Motivo: ${r.motivo}.`, '',\n      'Revisa los datos y vuelve a enviar la confirmación.', '', 'Este aviso lo envía el flujo \"Confirmar solicitud de apartado\".'].join('\\n') };\n}\n\n// Tras \"Marcar como confirmada\" el item es la fila de la tabla: el resultado se toma de \"Comprobar creación\".\nreturn $input.all().map((i, k) => {\n  const r = i.json.accion ? i.json : $('Comprobar creación').all().filter(x => x.json.creado)[k].json;\n  return { json: avisoResultado(r) };\n});"
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000013",
+      "name": "Avisar a Marisa",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        2420,
+        100
+      ],
+      "parameters": {
+        "mode": "each",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "EMBEoqRq6CbqJTYV",
+          "cachedResultName": "SUB - Enviar notificación"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "destinatario": "={{ $json.destinatario }}",
+            "email": "={{ $json.email }}",
+            "asunto": "={{ $json.asunto }}",
+            "mensaje": "={{ $json.mensaje }}",
+            "contexto": "={{ $json.contexto }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "destinatario",
+              "displayName": "destinatario",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "asunto",
+              "displayName": "asunto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "type": "string",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000014",
+      "name": "¿Falló el aviso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c9d8e7f6-0000-4000-8000-000000000005",
+              "leftValue": "={{ $json.enviado !== true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000015",
+      "name": "Avisar de que no se envió",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        2860,
+        0
+      ],
+      "parameters": {
+        "errorMessage": "=No se pudo enviar un aviso del flujo \"Confirmar solicitud de apartado\" (motivo: {{ $json.motivo }}). El aviso está en el nodo anterior al envío."
+      }
+    }
+  ],
+  "pinData": null,
+  "connections": {
+    "Probar con confirmaciones de ejemplo": {
+      "main": [
+        [
+          {
+            "node": "Confirmaciones de ejemplo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmaciones de ejemplo": {
+      "main": [
+        [
+          {
+            "node": "Preparar confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulario de confirmación": {
+      "main": [
+        [
+          {
+            "node": "Preparar confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar confirmación": {
+      "main": [
+        [
+          {
+            "node": "Solicitudes guardadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Solicitudes guardadas": {
+      "main": [
+        [
+          {
+            "node": "Decidir confirmaciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decidir confirmaciones": {
+      "main": [
+        [
+          {
+            "node": "¿Se crea el apartado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se crea el apartado?": {
+      "main": [
+        [
+          {
+            "node": "Crear apartado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redactar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear apartado": {
+      "main": [
+        [
+          {
+            "node": "Comprobar creación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comprobar creación": {
+      "main": [
+        [
+          {
+            "node": "¿Se creó?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se creó?": {
+      "main": [
+        [
+          {
+            "node": "Marcar como confirmada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Redactar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como confirmada": {
+      "main": [
+        [
+          {
+            "node": "Redactar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactar resultado": {
+      "main": [
+        [
+          {
+            "node": "Avisar a Marisa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Avisar a Marisa": {
+      "main": [
+        [
+          {
+            "node": "¿Falló el aviso?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Falló el aviso?": {
+      "main": [
+        [
+          {
+            "node": "Avisar de que no se envió",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "OusUpH8JpPQsG52u"
+  },
+  "versionId": "f7dc8b3a-7149-41bf-a80b-70dff0d21142",
+  "meta": {},
+  "id": "wb0eGUWzatfs7g4M",
+  "tags": []
+}
