@@ -8,6 +8,7 @@ services:
       - DB_PATH=/data/tienda.db
       - API_KEY=${API_KEY}
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:?Configura WEBHOOK_TOKEN en el archivo .env}
       - SEED=${SEED:-1}
     volumes:
       - tienda_data:/data
@@ -23,6 +24,7 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - EMAIL_TIENDA=${EMAIL_TIENDA:-}
       - UMBRAL_VENTA_GRANDE=${UMBRAL_VENTA_GRANDE:-80}
+      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:?Configura WEBHOOK_TOKEN en el archivo .env}
       - TELEGRAM_CHAT_ID_MARISA=${TELEGRAM_CHAT_ID_MARISA:-}
       # URL pública/base de n8n que usan los flujos para construir enlaces (p. ej. confirmar-solicitud)
       - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
