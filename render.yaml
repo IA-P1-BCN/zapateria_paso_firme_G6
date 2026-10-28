@@ -1,0 +1,105 @@
+# T-022 · Despliegue en Render (plan gratuito).
+#
+# AVISO: en el plan gratuito de Render los servicios se DUERMEN tras 15 minutos sin peticiones.
+# La primera petición después tarda en contestar mientras el servidor se levanta
+# (unos 30-60 s la tienda y hasta 1-2 min n8n). No es un error: hay que esperar y recargar.
+# No se añade nada que los mantenga despiertos (ni pings ni tareas programadas activas).
+#
+# Los valores marcados con "sync: false" son secretos: se rellenan a mano en el panel de Render,
+# nunca en este fichero. Ver la sección "Despliegue en la nube" del README.
+
+services:
+  # App de la tienda. Sus datos están en SQLite dentro del contenedor y Render gratis no tiene disco
+  # permanente: cada vez que el servicio se duerme o se reinicia vuelve a los datos de ejemplo (SEED=1).
+  - type: web
+    name: paso-firme-tienda
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: dev
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: TZ
+        value: Europe/Madrid
+      - key: SEED
+        value: "1"
+      # La app se la pasa al navegador (/config.js): usar una clave solo para esta demo.
+      - key: API_KEY
+        sync: false
+      # Cuando n8n esté desplegado (ver abajo), descomentar para que la tienda le avise:
+      # - key: N8N_WEBHOOK_URL       # https://<servicio de n8n>.onrender.com/webhook/tienda
+      #   sync: false
+      # - key: WEBHOOK_TOKEN         # el mismo valor que en n8n (T-020)
+      #   sync: false
+
+  # PENDIENTE: n8n con su base de datos en Neon (Postgres que escala a cero). Se decidirá si se usa Neon;
+  # mientras tanto el bloque queda comentado. Para desplegarlo, descomentarlo entero y seguir los pasos
+  # de "n8n en la nube (pendiente)" en el README. Probado en local: n8n 2.44.4 arranca contra Neon.
+  #
+  # - type: web
+  #   name: paso-firme-n8n
+  #   runtime: image
+  #   plan: free
+  #   region: frankfurt
+  #   image:
+  #     url: docker.n8n.io/n8nio/n8n:2.44.4
+  #   healthCheckPath: /healthz
+  #   envVars:
+  #     - key: PORT
+  #       value: "5678"
+  #     - key: N8N_PORT
+  #       value: "5678"
+  #     - key: N8N_PROTOCOL
+  #       value: https
+  #     # <servicio de n8n>.onrender.com, y las dos URL con https://
+  #     - key: N8N_HOST
+  #       sync: false
+  #     - key: WEBHOOK_URL
+  #       sync: false
+  #     - key: N8N_EDITOR_BASE_URL
+  #       sync: false
+  #     - key: GENERIC_TIMEZONE
+  #       value: Europe/Madrid
+  #     - key: TZ
+  #       value: Europe/Madrid
+  #     # Clave con la que n8n cifra las credenciales. Si cambia, dejan de poder leerse.
+  #     - key: N8N_ENCRYPTION_KEY
+  #       generateValue: true
+  #     # Base de datos en Neon: conexión directa (sin -pooler), porque n8n hace migraciones al arrancar
+  #     - key: DB_TYPE
+  #       value: postgresdb
+  #     - key: DB_POSTGRESDB_HOST
+  #       sync: false
+  #     - key: DB_POSTGRESDB_PORT
+  #       value: "5432"
+  #     - key: DB_POSTGRESDB_DATABASE
+  #       sync: false
+  #     - key: DB_POSTGRESDB_USER
+  #       sync: false
+  #     - key: DB_POSTGRESDB_PASSWORD
+  #       sync: false
+  #     - key: DB_POSTGRESDB_SSL_ENABLED
+  #       value: "true"
+  #     # Ejecuciones: solo una semana, para no llenar el espacio gratuito de Neon (1 GB)
+  #     - key: EXECUTIONS_DATA_PRUNE
+  #       value: "true"
+  #     - key: EXECUTIONS_DATA_MAX_AGE
+  #       value: "168"
+  #     - key: N8N_DIAGNOSTICS_ENABLED
+  #       value: "false"
+  #     # Igual que en docker-compose.yml: los flujos leen su configuración con $env
+  #     - key: N8N_BLOCK_ENV_ACCESS_IN_NODE
+  #       value: "false"
+  #     - key: UMBRAL_VENTA_GRANDE
+  #       value: "80"
+  #     - key: EMAIL_TIENDA
+  #       sync: false
+  #     # Chat de Telegram de Marisa (asistente de Marisa, T-017)
+  #     - key: TELEGRAM_CHAT_ID_MARISA
+  #       sync: false
+  #     - key: WEBHOOK_TOKEN
+  #       sync: false
