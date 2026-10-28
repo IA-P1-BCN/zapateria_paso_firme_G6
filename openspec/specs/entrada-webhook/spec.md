@@ -29,3 +29,10 @@ Los workflows exportados SHALL referenciar las credenciales solo por nombre.
 #### Scenario: Exportar el workflow
 - **WHEN** se exporta `00 - Entrada tienda` a `workflows/`
 - **THEN** el JSON no contiene claves ni tokens
+
+### Requirement: Webhook autenticado
+El workflow `00 - Entrada tienda` SHALL rechazar los eventos sin la cabecera `X-Webhook-Token` correcta cuando `WEBHOOK_TOKEN` esté configurado.
+
+#### Scenario: Sin token válido
+- **WHEN** llega un evento sin la cabecera de autenticación o con un token incorrecto
+- **THEN** se rechaza y no se ejecuta ningún flujo

@@ -74,6 +74,7 @@ Para pararlo: `docker compose down`. Para borrar también los datos: `docker com
 | `SEED` | `1` carga datos de ejemplo al arrancar; `0` arranca vacía (migración) |
 | `EMAIL_TIENDA` | Buzón de la tienda: recibe los avisos a Marisa y es también el remitente de los correos |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" (por defecto `80`) |
+| `WEBHOOK_TOKEN` | Token que la app envía en `X-Webhook-Token` al avisar a n8n (vacío = no envía avisos) |
 | `TELEGRAM_CHAT_ID_MARISA` | Identificador del chat de Telegram de Marisa: el único que atiende `Asistente Marisa` (T-017) |
 
 Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.

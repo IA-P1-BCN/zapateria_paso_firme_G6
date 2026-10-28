@@ -62,3 +62,15 @@ El sistema SHALL enviar el aviso a la URL de producción (`http://n8n:5678/webho
 - **WHEN** el flujo con el Webhook no está publicado
 - **THEN** la URL de producción responde 404 y no se ejecuta nada
 - **AND** para ver avisos mientras se construye el flujo se usa temporalmente `/webhook-test/tienda`
+
+
+### Requirement: Autenticación del aviso
+La app SHALL enviar la cabecera X-Webhook-Token con el valor de WEBHOOK_TOKEN cuando esté configurado. Si WEBHOOK_TOKEN está vacío, visar() no envía ningún aviso y solo escribe un aviso en el log.
+
+#### Scenario: Token configurado
+- **WHEN** WEBHOOK_TOKEN tiene valor
+- **THEN** cada aviso lleva la cabecera X-Webhook-Token
+
+#### Scenario: Token vacío
+- **WHEN** WEBHOOK_TOKEN está vacío
+- **THEN** no se envía ningún aviso (también fuera de Docker) y la app escribe un warning en el log
