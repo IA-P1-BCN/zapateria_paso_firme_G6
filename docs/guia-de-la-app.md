@@ -275,6 +275,7 @@ La app usa **la Production URL** (es lo que trae el `.env`). Por eso, **si el fl
 - **La app no se entera de si n8n lo procesó bien.** Solo le importa enviarlo. Si n8n falla por dentro, la app ni lo sabe.
 - **Un fallo del aviso no rompe nada en la tienda.** Crear un apartado funciona igual aunque n8n esté caído. El aviso se manda **después** de responder a la dependienta, con un máximo de 5 segundos de espera.
 - Si `N8N_WEBHOOK_URL` está **vacía** en el `.env`, la app no envía ningún aviso.
+- Si se configura `WEBHOOK_TOKEN`, la app envía la cabecera `X-Webhook-Token` con ese valor; si está **vacío**, no envía ningún aviso (también fuera de Docker) y solo escribe un warning. Si el webhook de n8n está protegido, el flujo debe validar esa cabecera.
 
 ### Cómo ver qué está enviando la app
 

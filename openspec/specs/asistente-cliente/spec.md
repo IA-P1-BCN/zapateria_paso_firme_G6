@@ -1,7 +1,7 @@
 # asistente-cliente Specification
 
 ## Purpose
-TBD - created by archiving change t-016-asistente-telegram-cliente. Update Purpose after archive.
+Asistente de Telegram para clientes: permite consultar el saldo y la fecha límite de sus apartados tras identificarse con su teléfono y número de apartado. Solo lectura.
 
 ## Requirements
 
