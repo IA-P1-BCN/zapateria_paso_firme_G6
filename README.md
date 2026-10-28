@@ -375,6 +375,18 @@ Un cliente puede pedir un apartado desde casa con un formulario. El apartado **n
 | 4 confirmaciones: nº 1 (89,90 €, 10 € por Bizum) dos veces, nº 2 con 3 € de abono, nº 99 | Se crea el **apartado #8** de Carmen y la nº 1 queda `confirmada`; la repetida, la de 3 € (mínimo 5 €) y la nº 99 (no existe) no crean nada. El flujo 01 manda la confirmación a Carmen |
 | Las mismas solicitudes y confirmaciones otra vez | No se guarda ninguna solicitud ni se crea ningún apartado: «ya está confirmada (apartado #8)» |
 
+### Panel movil para Marisa (T-021)
+
+Panel de solo lectura para Marisa, servido como pagina HTML desde n8n (/webhook/panel-marisa), protegido con Basic Auth (credencial Acceso Marisa). Muestra el total cobrado hoy (ventas + abonos, con desglose por forma de pago), los apartados que vencen en los proximos 7 dias y el total pendiente de cobro. No modifica la app ni el frontend.
+
+Para ponerlo en marcha:
+
+- Importa workflows/21 - Panel movil para Marisa.json y publica el flujo.
+- Crea/selecciona las credenciales Tienda API y Acceso Marisa.
+- Abre https://<tu-dominio>/webhook/panel-marisa (o http://n8n:5678/webhook/panel-marisa desde dentro) e inicia sesion.
+
+---
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -775,6 +787,18 @@ A customer can request a layaway from home through a form. The layaway **is not 
 | 4 requests: Carmen (with email), Pedro (no email), Ana without a model, Carmen repeated | Requests 1 (Carmen) and 2 (Pedro) are saved as pending; Ana's and the repeated one are not. 5 alerts: 4 to Marisa and the acknowledgement to Carmen |
 | 4 confirmations: no. 1 (€89.90, €10 by Bizum) twice, no. 2 with a €3 down payment, no. 99 | **Layaway #8** is created for Carmen and no. 1 becomes `confirmada`; the repeated one, the €3 one (minimum €5) and no. 99 (does not exist) create nothing. Workflow 01 sends Carmen the confirmation |
 | The same requests and confirmations again | No request is saved and no layaway is created: "ya está confirmada (apartado #8)" |
+
+### Mobile panel for Marisa (T-021)
+
+Read-only panel for Marisa, served as an HTML page from n8n (/webhook/panel-marisa), protected with Basic Auth (credential Acceso Marisa). Shows the total collected today (sales + layaway payments, by payment method), layaways expiring in the next 7 days and the total outstanding. Does not modify the app or frontend.
+
+To run it:
+
+- Import workflows/21 - Panel movil para Marisa.json and publish the workflow.
+- Create/select the Tienda API and Acceso Marisa credentials.
+- Open https://<your-domain>/webhook/panel-marisa (or http://n8n:5678/webhook/panel-marisa from inside) and sign in.
+
+---
 
 ### Repository layout
 
