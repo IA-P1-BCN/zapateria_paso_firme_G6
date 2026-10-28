@@ -14,6 +14,13 @@ Se anota cada uso relevante de un agente: qué herramienta y modelo, qué se pid
 
 ## Entradas
 
+### 2026-10-27 · T-021 · Panel móvil para Marisa
+- Herramienta / modelo: OpenCode (Beam) + n8n 2.44.4 vía API REST del editor.
+- Qué se pidió: implementar el panel de solo lectura para Marisa (total cobrado hoy y apartados por vencer) protegido con autenticación, como flujo n8n exportable.
+- Qué salió: flujo `21 - Panel móvil para Marisa` con Webhook GET `/panel-marisa` (Basic Auth), cadena de nodos que consulta `/api/ventas`, `/api/abonos` y `/api/apartados?estado=activo`, nodo Code que construye un HTML responsive y `Respond to Webhook`. Probado en la instancia local: 401 sin credenciales, 200 con ellas y cifras correctas (12,50 € de prueba).
+- Qué se corrigió a mano: (1) el Webhook necesitaba `responseMode: "responseNode"` a nivel de parámetro (no dentro de `options`) para que el nodo `Respond to Webhook` no quedara "unused"; (2) los nodos HTTP Request con 0 resultados cortaban la cadena (n8n no ejecuta downstream con 0 items), así que se añadió `alwaysOutputData: true`; (3) el euro se codificó como `\u20ac` en el JS para evitar problemas de codificación al exportar.
+- Aprendizaje: un webhook que responde con HTML permite un panel sin tocar `backend/` ni `frontend/`; la autenticación Basic Auth del nodo Webhook reutiliza la credencial `Acceso Marisa`.
+
 ### 2026-10-21 · T-000 · Specs de base leyendo el código de la app
 - Herramienta / modelo: Claude Code (Sonnet 5.5).
 - Qué se pidió: describir cómo funciona hoy la app (API, webhook y reglas de apartado) como specs verificables.
