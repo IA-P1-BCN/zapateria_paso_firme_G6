@@ -1,4 +1,4 @@
-services:
+﻿services:
   tienda:
     build: .
     ports:
@@ -8,8 +8,9 @@ services:
       - DB_PATH=/data/tienda.db
       - API_KEY=${API_KEY}
       - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
-      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:-}
+      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:?Configura WEBHOOK_TOKEN en el archivo .env}
       - SEED=${SEED:-1}
+      - TELEGRAM_CHAT_ID_MARISA=${TELEGRAM_CHAT_ID_MARISA:-}
     volumes:
       - tienda_data:/data
 
@@ -20,12 +21,13 @@ services:
     environment:
       - TZ=Europe/Madrid
       - GENERIC_TIMEZONE=Europe/Madrid
-      # n8n 2.x bloquea $env en los nodos por defecto; los flujos leen aquí su configuración
+      # Permite que los nodos lean variables de entorno
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - EMAIL_TIENDA=${EMAIL_TIENDA:-}
       - UMBRAL_VENTA_GRANDE=${UMBRAL_VENTA_GRANDE:-80}
+      - WEBHOOK_TOKEN=${WEBHOOK_TOKEN:?Configura WEBHOOK_TOKEN en el archivo .env}
       - TELEGRAM_CHAT_ID_MARISA=${TELEGRAM_CHAT_ID_MARISA:-}
-      # URL pública/base de n8n que usan los flujos para construir enlaces (p. ej. confirmar-solicitud)
+      # URL pública/base de n8n que usan los flujos para construir enlaces
       - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
     volumes:
       - n8n_data:/home/node/.n8n

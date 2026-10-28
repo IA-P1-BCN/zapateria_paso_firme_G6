@@ -5,12 +5,13 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "tienda",
+        "responseMode": "responseNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.2,
       "position": [
-        0,
+        -352,
         336
       ],
       "id": "12b82f84-bb78-4e33-b7e5-b390e24cfe9b",
@@ -261,6 +262,73 @@
       ],
       "id": "72383568-3480-4ca0-90f8-fa6e78f29df0",
       "name": "Ejecutar flujo 04"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "c4aad051-435d-4e01-b8a7-e58228fd3107",
+              "leftValue": "={{ $json.headers['x-webhook-token'] }}",
+              "rightValue": "={{ $env.WEBHOOK_TOKEN }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        -160,
+        336
+      ],
+      "id": "de9e6e31-7b1a-492c-b796-62c4daf75e8e",
+      "name": "¿Token correcto?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"ok\": false,\n  \"error\": \"No autorizado\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        80,
+        512
+      ],
+      "id": "dbd49443-fda2-4b22-94c3-f8986c8d2c42",
+      "name": "Respuesta no autorizada"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"ok\": true,\n  \"mensaje\": \"Petición aceptada\"\n}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        80,
+        336
+      ],
+      "id": "14125a54-29f1-45c5-ab79-e4dfc9876138",
+      "name": "Respuesta autorizada"
     }
   ],
   "pinData": {},
@@ -269,7 +337,7 @@
       "main": [
         [
           {
-            "node": "Enrutar por evento",
+            "node": "¿Token correcto?",
             "type": "main",
             "index": 0
           }
@@ -314,6 +382,35 @@
           }
         ]
       ]
+    },
+    "¿Token correcto?": {
+      "main": [
+        [
+          {
+            "node": "Respuesta autorizada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta no autorizada",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respuesta autorizada": {
+      "main": [
+        [
+          {
+            "node": "Enrutar por evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -322,7 +419,7 @@
     "binaryMode": "separate",
     "errorWorkflow": "HHKPnBEBF9SObOSU"
   },
-  "versionId": "e582fef8-f40f-4ccd-b243-7c79e435f39b",
+  "versionId": "4ba7d48b-e2a5-4dca-a81f-c2eafd9d93c8",
   "meta": {
     "instanceId": "ff6e88880c6317a73290513e39af0a0dc91c8915394f87fa09bb02c877d318ed"
   },

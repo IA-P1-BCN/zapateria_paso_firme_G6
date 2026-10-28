@@ -1,4 +1,4 @@
-# 👟 Zapatería Paso Firme · Automatizaciones con n8n (G6)
+﻿# 👟 Zapatería Paso Firme · Automatizaciones con n8n (G6)
 
 **[Español](#-español)** · **[English](#-english)**
 
@@ -92,6 +92,24 @@ Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 
 Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores de las credenciales no se suben nunca al repositorio.
 
+### Protección de datos y seguridad del webhook (T-020)
+
+**Autenticación del webhook:** la tienda envía los eventos a n8n mediante `POST` a `N8N_WEBHOOK_URL`, con la cabecera `X-Webhook-Token`. El token se configura mediante `WEBHOOK_TOKEN` en `.env`; no debe incluirse en la URL, en los JSON exportados ni en el repositorio. n8n comprueba la cabecera antes de aceptar el evento. Las peticiones sin token válido deben rechazarse. Si falta `WEBHOOK_TOKEN`, la aplicación omite el aviso y registra una advertencia; la operación de la tienda continúa.
+
+**Datos que salen a servicios externos:**
+
+| Servicio | Datos enviados | Finalidad |
+|---|---|---|
+| n8n (webhook local) | Tipo de evento y datos asociados al evento generado por la app; pueden incluir identificadores, nombres, conceptos e importes según el evento | Automatizar avisos y procesos de la tienda |
+| Proveedor de IA Groq (flujo 03) | Asunto y cuerpo del correo bancario que supera el filtro, para extraer ordenante, importe y concepto | Ayudar a identificar pagos a distancia |
+| Servicio de correo SMTP | Dirección del destinatario, asunto y cuerpo del mensaje | Enviar recibos y avisos |
+| Buzón bancario IMAP | Acceso a los correos recibidos por la cuenta configurada | Detectar notificaciones de Bizum y transferencias |
+
+Los datos que llegan a n8n pueden contener datos personales. El flujo 03 transmite a Groq el asunto y el cuerpo del correo que procesa; por tanto, en un entorno real podrían salir datos personales a ese proveedor. Usar datos ficticios en pruebas y limitar la información transmitida a la necesaria. Revisar las condiciones, la configuración de privacidad y la base jurídica aplicable antes de procesar datos reales. Esta documentación no sustituye una evaluación legal ni acredita por sí sola la existencia de consentimiento.
+
+**Consentimiento e información:** informar a los clientes, antes de tratar sus datos, sobre las finalidades, los destinatarios o categorías de destinatarios, la conservación y sus derechos, según corresponda. No asumir que el uso de la app implica consentimiento válido para cualquier tratamiento o envío a terceros.
+
+**Logs y credenciales:** no registrar tokens, claves, contraseñas, cuerpos completos de correos ni datos personales en mensajes de error. Guardar `.env` fuera del control de versiones y no exportar credenciales reales en los workflows. Los archivos de ejemplo deben usar datos ficticios. El token del webhook autentica la petición, pero no cifra el tráfico; para despliegues fuera de una red local controlada, utilizar HTTPS y controles de acceso adecuados.
 ### Contratos de los sub-workflows
 
 #### `SUB - Buscar apartado` (T-003)
@@ -506,6 +524,24 @@ Inside a workflow they are read with `{{ $env.NAME }}`.
 
 Workflows only store the credential **name**. The `.env` file and credential values are never committed.
 
+### Data protection and webhook security (T-020)
+
+**Webhook authentication:** the shop sends events to n8n using `POST` to `N8N_WEBHOOK_URL`, with the `X-Webhook-Token` header. Configure the token through `WEBHOOK_TOKEN` in `.env`; never put it in the URL, exported workflow JSON or the repository. n8n checks the header before accepting the event. Requests without a valid token must be rejected. If `WEBHOOK_TOKEN` is missing, the application logs a warning and skips the notification; the shop operation still completes.
+
+**Data sent to external services:**
+
+| Service | Data sent | Purpose |
+|---|---|---|
+| n8n (local webhook) | Event type and associated app event data; depending on the event, this may include identifiers, names, references and amounts | Automate shop notifications and processes |
+| Groq AI provider (workflow 03) | Subject and body of bank emails that pass the filter, to extract payer, amount and reference | Help identify remote payments |
+| SMTP email service | Recipient address, subject and message body | Send receipts and alerts |
+| Bank mailbox via IMAP | Access to messages received by the configured account | Detect Bizum and bank transfer notifications |
+
+Data reaching n8n may contain personal data. Workflow 03 sends the subject and body of each processed email to Groq; in a real environment, this could disclose personal data to that provider. Use fictitious data in tests and limit transmitted information to what is necessary. Review the provider's terms, privacy settings and the applicable legal basis before processing real data. This documentation is not a legal assessment and does not by itself establish valid consent.
+
+**Consent and transparency:** inform customers, before processing their data, about purposes, recipients or categories of recipients, retention and their rights, as applicable. Do not assume that using the app constitutes valid consent for every processing activity or transfer to third parties.
+
+**Logs and credentials:** do not log tokens, keys, passwords, full email bodies or personal data in error messages. Keep `.env` out of version control and do not export real credentials in workflow files. Sample files should use fictitious data. The webhook token authenticates requests but does not encrypt traffic; use HTTPS and suitable access controls for deployments beyond a controlled local network.
 ### Sub-workflow contracts
 
 #### `SUB - Buscar apartado` (T-003)

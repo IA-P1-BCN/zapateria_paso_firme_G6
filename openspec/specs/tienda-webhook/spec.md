@@ -6,7 +6,7 @@ Los avisos que la app envía a n8n cuando pasa algo en la tienda. Fuente: `backe
 ## Requirements
 
 ### Requirement: Envoltorio común del aviso
-El sistema SHALL enviar cada aviso como un `POST` JSON a `N8N_WEBHOOK_URL` con la forma `{"evento": "<nombre>", "datos": {...}}`, tanto si la acción viene de la pantalla como de la API.
+Cuando `N8N_WEBHOOK_URL` y `WEBHOOK_TOKEN` están configuradas, el sistema SHALL enviar cada aviso como un `POST` JSON a `N8N_WEBHOOK_URL` con la cabecera `X-Webhook-Token` y la forma `{"evento": "<nombre>", "datos": {...}}`, tanto si la acción viene de la pantalla como de la API.
 
 #### Scenario: n8n lee el aviso
 - **WHEN** el nodo Webhook de n8n recibe el aviso
@@ -56,7 +56,7 @@ El sistema SHALL enviar el aviso una sola vez, después de responder a quien hiz
 - **THEN** los pide a la API y no espera haber recibido un evento
 
 ### Requirement: Dirección del webhook
-El sistema SHALL enviar el aviso a la URL de producción (`http://n8n:5678/webhook/tienda`) y no enviar nada si `N8N_WEBHOOK_URL` está vacía.
+El sistema SHALL enviar el aviso a la URL configurada en `N8N_WEBHOOK_URL` únicamente cuando `WEBHOOK_TOKEN` esté configurado. Si `N8N_WEBHOOK_URL` está vacía, no envía nada; si falta `WEBHOOK_TOKEN`, registra una advertencia y omite el aviso.
 
 #### Scenario: Flujo no publicado
 - **WHEN** el flujo con el Webhook no está publicado
