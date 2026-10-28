@@ -87,6 +87,7 @@ Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 | `Correo entrada` | IMAP | La misma cuenta, para leer los avisos del banco |
 | `Modelo IA` | Groq | Clave personal de https://console.groq.com |
 | `Telegram Marisa` | Telegram | Token del bot de Marisa (se crea con BotFather; solo en la credencial, nunca en el repo) |
+| `Telegram Clientes` | Telegram | Token del bot de clientes (se crea con BotFather; solo en la credencial, nunca en el repositorio) |
 | `Acceso Marisa` | Basic Auth | Usuario y contraseña del formulario de confirmación de solicitudes (T-018) |
 
 Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores de las credenciales no se suben nunca al repositorio.
@@ -500,6 +501,7 @@ Inside a workflow they are read with `{{ $env.NAME }}`.
 | `Correo entrada` | IMAP | Same account, to read bank notifications |
 | `Modelo IA` | Groq | Personal key from https://console.groq.com |
 | `Telegram Marisa` | Telegram | Token of Marisa's bot (created with BotFather; only in the credential, never in the repo) |
+| `Telegram Clientes` | Telegram | Token of the customers' bot (created with BotFather; only in the credential, never in the repository) |
 | `Acceso Marisa` | Basic Auth | Username and password for the request confirmation form (T-018) |
 
 Workflows only store the credential **name**. The `.env` file and credential values are never committed.
