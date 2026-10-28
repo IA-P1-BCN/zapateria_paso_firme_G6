@@ -255,9 +255,9 @@ Los cuatro avisos tal y como salen de la app:
 ### Cómo lo recibe n8n
 
 1. Un nodo **Webhook** con método `POST` y **Path** `tienda` (para que coincida con `http://n8n:5678/webhook/tienda`).
-2. n8n guarda lo recibido dentro de **`body`**. Por eso, para leerlo, se escribe `{{ $json.body.evento }}` y `{{ $json.body.datos.estado }}`, **no** `{{ $json.evento }}`.
-3. Un nodo **Switch** sobre `{{ $json.body.evento }}` reparte cada evento a su camino.
-
+2. Antes de derivar el evento, validar la cabecera `X-Webhook-Token` contra la variable de entorno `WEBHOOK_TOKEN`. Las solicitudes sin token válido deben recibir HTTP 401 y no continuar; las autenticadas reciben HTTP 202 antes de procesarse.
+3. n8n guarda el cuerpo recibido dentro de **`body`**. Por eso, para leerlo, se escribe `{{ $json.body.evento }}` y `{{ $json.body.datos.estado }}`, **no** `{{ $json.evento }}`.
+4. Un nodo **Switch** sobre `{{ $json.body.evento }}` reparte cada evento autenticado a su camino.
 ### Test URL y Production URL
 
 El nodo Webhook tiene dos direcciones, y se confunden mucho:
@@ -267,6 +267,8 @@ El nodo Webhook tiene dos direcciones, y se confunden mucho:
 | **Test URL** | `http://n8n:5678/webhook-test/tienda` | Has pulsado **Listen for test event** o **Execute workflow** (solo un aviso cada vez) |
 | **Production URL** | `http://n8n:5678/webhook/tienda` | El flujo está **publicado** (*Publish*) |
 
+Tanto la Test URL como la Production URL requieren la cabecera `X-Webhook-Token` con el valor configurado en `WEBHOOK_TOKEN`.
+
 La app usa **la Production URL** (es lo que trae el `.env`). Por eso, **si el flujo no está publicado, n8n responde 404 y no pasa nada.**
 
 ### Lo que conviene saber (y es una trampa habitual)
@@ -275,6 +277,8 @@ La app usa **la Production URL** (es lo que trae el `.env`). Por eso, **si el fl
 - **La app no se entera de si n8n lo procesó bien.** Solo le importa enviarlo. Si n8n falla por dentro, la app ni lo sabe.
 - **Un fallo del aviso no rompe nada en la tienda.** Crear un apartado funciona igual aunque n8n esté caído. El aviso se manda **después** de responder a la dependienta, con un máximo de 5 segundos de espera.
 - Si `N8N_WEBHOOK_URL` está **vacía** en el `.env`, la app no envía ningún aviso.
+- Si `N8N_WEBHOOK_URL` está configurada pero falta `WEBHOOK_TOKEN`, la app registra una advertencia y omite el aviso. La operación de la tienda se completa igualmente.
+- En Docker Compose, `WEBHOOK_TOKEN` es obligatoria. En desarrollo local, configura la variable en el entorno de la aplicación y usa el mismo secreto en n8n. No lo escribas en el código ni lo subas al repositorio.
 
 ### Cómo ver qué está enviando la app
 

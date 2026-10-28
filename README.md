@@ -1,4 +1,4 @@
-# 👟 Zapatería Paso Firme · Automatizaciones con n8n (G6)
+﻿# 👟 Zapatería Paso Firme · Automatizaciones con n8n (G6)
 
 **[Español](#-español)** · **[English](#-english)**
 
@@ -91,7 +91,7 @@ Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores 
 
 ### Protección de datos y seguridad del webhook (T-020)
 
-**Autenticación del webhook:** la tienda envía los eventos a n8n mediante `POST` a `N8N_WEBHOOK_URL`, con la cabecera `X-Webhook-Token`. El token se configura mediante `WEBHOOK_TOKEN` en `.env`; no debe incluirse en la URL, en los JSON exportados ni en el repositorio. n8n comprueba la cabecera antes de aceptar el evento. Las peticiones sin token válido deben rechazarse.
+**Autenticación del webhook:** la tienda envía los eventos a n8n mediante `POST` a `N8N_WEBHOOK_URL`, con la cabecera `X-Webhook-Token`. El token se configura mediante `WEBHOOK_TOKEN` en `.env`; no debe incluirse en la URL, en los JSON exportados ni en el repositorio. n8n comprueba la cabecera antes de aceptar el evento. Las peticiones sin token válido deben rechazarse. Si falta `WEBHOOK_TOKEN`, la aplicación omite el aviso y registra una advertencia; la operación de la tienda continúa.
 
 **Datos que salen a servicios externos:**
 
@@ -508,7 +508,7 @@ Workflows only store the credential **name**. The `.env` file and credential val
 
 ### Data protection and webhook security (T-020)
 
-**Webhook authentication:** the shop sends events to n8n using `POST` to `N8N_WEBHOOK_URL`, with the `X-Webhook-Token` header. Configure the token through `WEBHOOK_TOKEN` in `.env`; never put it in the URL, exported workflow JSON or the repository. n8n checks the header before accepting the event. Requests without a valid token must be rejected.
+**Webhook authentication:** the shop sends events to n8n using `POST` to `N8N_WEBHOOK_URL`, with the `X-Webhook-Token` header. Configure the token through `WEBHOOK_TOKEN` in `.env`; never put it in the URL, exported workflow JSON or the repository. n8n checks the header before accepting the event. Requests without a valid token must be rejected. If `WEBHOOK_TOKEN` is missing, the application logs a warning and skips the notification; the shop operation still completes.
 
 **Data sent to external services:**
 

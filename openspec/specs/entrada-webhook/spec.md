@@ -6,7 +6,7 @@ TBD - created by archiving change t-001-base-webhook-credenciales. Update Purpos
 ## Requirements
 
 ### Requirement: Entrada única de eventos
-El workflow `00 - Entrada tienda` SHALL recibir por `POST /webhook/tienda` los eventos de la app y derivar cada uno a su flujo según `$json.body.evento`.
+El workflow `00 - Entrada tienda` SHALL recibir por `POST /webhook/tienda` los eventos de la app, validar primero la cabecera `X-Webhook-Token` contra `WEBHOOK_TOKEN` y derivar únicamente las solicitudes autenticadas según `$json.body.evento`.
 
 #### Scenario: Evento conocido
 - **WHEN** llega `apartado.creado`, `abono.registrado`, `venta.registrada` o `apartado.vencido`
@@ -17,11 +17,15 @@ El workflow `00 - Entrada tienda` SHALL recibir por `POST /webhook/tienda` los e
 - **THEN** no se ejecuta ningún flujo y el workflow no falla
 
 ### Requirement: Respuesta inmediata
-El workflow SHALL responder 200 a la app antes de procesar el evento.
+El workflow SHALL responder HTTP 202 a las solicitudes autenticadas antes de procesar el evento y HTTP 401 a las solicitudes no autenticadas.
 
 #### Scenario: Flujo lento
 - **WHEN** el flujo de destino tarda más de 5 segundos
-- **THEN** la app ya ha recibido el 200
+- **THEN** la app ya ha recibido el HTTP 202
+
+#### Scenario: Token ausente o incorrecto
+- **WHEN** la solicitud no incluye `X-Webhook-Token` o el valor no coincide con `WEBHOOK_TOKEN`
+- **THEN** el workflow responde HTTP 401 y no deriva el evento a ningún flujo
 
 ### Requirement: Credenciales sin valores en el repositorio
 Los workflows exportados SHALL referenciar las credenciales solo por nombre.
