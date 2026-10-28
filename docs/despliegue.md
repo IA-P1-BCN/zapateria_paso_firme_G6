@@ -22,6 +22,7 @@ Documento para poner en producción la automatización y cambiar los bots de Tel
 | `EMAIL_TIENDA` | Buzón de la tienda (remitente y destinatario de avisos) | `pasofirme.g6@gmail.com` |
 | `UMBRAL_VENTA_GRANDE` | Importe a partir del cual una venta es "grande" | `80` |
 | `N8N_EDITOR_BASE_URL` | URL pública/base de n8n usada por los flujos para construir enlaces (p. ej. confirmar solicitud) | `http://localhost:5678` (local) / `https://n8n.tu-dominio.com` (producción) |
+| `TELEGRAM_CHAT_ID_MARISA` | Chat ID de Telegram de Marisa (avisos del asistente) | (obtener con @userinfobot) |
 
 En producción cambia `N8N_EDITOR_BASE_URL` a la URL pública de n8n para que los enlaces enviados a Marisa (formulario de confirmación de solicitud) funcionen fuera de la red local.
 
@@ -36,21 +37,18 @@ Crearlas en n8n con **estos nombres exactos** (los flujos las referencian por no
 | `Correo entrada` | IMAP | La misma cuenta (para leer avisos del banco) |
 | `Modelo IA` | Groq | Clave personal de https://console.groq.com |
 | `Acceso Marisa` | Basic Auth | Usuario y contraseña de Marisa (formularios protegidos) |
-| `Telegram` (si aplica) | Telegram API | Token del bot de Telegram (`TELEGRAM_BOT_TOKEN`) |
+| `Telegram Marisa` | Telegram API | Token del bot de Telegram de Marisa |
 
 Los valores **nunca** se suben al repositorio.
 
 ## 4. Bots de Telegram: pasar a público
 
 1. **Exponer n8n con HTTPS** (reverse proxy: Nginx/Caddy/Traefik o un túnel como Cloudflare Tunnel). n8n debe ser accesible desde Internet en `https://<tu-dominio>`.
-2. En n8n, abre el flujo del asistente de Telegram (`Asistente cliente con agente IA`) y **publícalo** en una sola instancia.
-3. Configura el webhook del bot de Telegram para que apunte a n8n:
-   - URL del webhook: `https://<tu-dominio>/webhook/<path-del-trigger-telegram>` (el path lo define el nodo *Telegram Trigger* del flujo).
-   - Usa la API de Telegram: `https://api.telegram.org/bot<TOKEN>/setWebhook?url=...`
-4. Actualiza `N8N_EDITOR_BASE_URL` a la URL pública y reinicia n8n (`docker compose up -d`).
-5. Prueba enviando un mensaje al bot desde Telegram.
+2. En n8n, abre el flujo del asistente de Telegram (`Asistente cliente con agente IA`) y **publícalo** en una sola instancia. Al publicar, n8n registra el webhook del bot automáticamente; no lo registres a mano con la API de Telegram para evitar pisarlo.
+3. Actualiza `N8N_EDITOR_BASE_URL` a la URL pública y reinicia n8n (`docker compose up -d`).
+4. Prueba enviando un mensaje al bot desde Telegram.
 
-> Si cambias el dominio o el path, vuelve a ejecutar `setWebhook` con la nueva URL. Solo una instancia de n8n debe tener el flujo publicado para evitar duplicados.
+> Solo una instancia de n8n debe tener el flujo publicado para evitar duplicados. Si cambias el dominio o el path, vuelve a publicar el flujo para que n8n actualice el webhook.
 
 ## 5. Flujos y cómo activarlos
 
@@ -64,7 +62,8 @@ Flujos principales: `00 - Entrada tienda`, `01` confirmación, `02` recibo, `03`
 ## 6. Panel móvil para Marisa (T-021)
 
 - URL: `https://<tu-dominio>/webhook/panel-marisa` (o `http://n8n:5678/webhook/panel-marisa` desde dentro).
-- Autenticación: Basic Auth con la credencial `Acceso Marisa`.
+- Autenticación: Basic Auth con la credencial `Acceso Marisa`. En producción debe ir **siempre detrás de HTTPS**, porque Basic Auth envía la contraseña en claro.
+- La respuesta lleva `Cache-Control: no-store`: las cifras de caja no deben quedar en caché del móvil.
 - Muestra: total cobrado hoy (ventas + abonos, desglose por forma de pago), apartados por vencer en 7 días y total pendiente de cobro.
 
 ## 7. Seguridad y datos personales
