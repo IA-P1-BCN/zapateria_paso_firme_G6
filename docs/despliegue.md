@@ -22,6 +22,7 @@ Documento para poner en producción la automatización y cambiar los bots de Tel
 | `EMAIL_TIENDA` | Buzón de la tienda (remitente y destinatario de avisos) | `pasofirme.g6@gmail.com` |
 | `UMBRAL_VENTA_GRANDE` | Importe a partir del cual una venta es "grande" | `80` |
 | `N8N_EDITOR_BASE_URL` | URL pública/base de n8n usada por los flujos para construir enlaces (p. ej. confirmar solicitud) | `http://localhost:5678` (local) / `https://n8n.tu-dominio.com` (producción) |
+| `WEBHOOK_TOKEN` | Token que la app envía en `X-Webhook-Token` al avisar a n8n (vacío = no envía avisos) | (vacío por defecto) |
 | `TELEGRAM_CHAT_ID_MARISA` | Chat ID de Telegram de Marisa (avisos del asistente) | (obtener con @userinfobot) |
 
 En producción cambia `N8N_EDITOR_BASE_URL` a la URL pública de n8n para que los enlaces enviados a Marisa (formulario de confirmación de solicitud) funcionen fuera de la red local.

@@ -71,6 +71,7 @@ Para pararlo: `docker compose down`. Para borrar también los datos: `docker com
 |---|---|
 | `API_KEY` | Clave que la app exige en la cabecera `X-API-Key` |
 | `N8N_WEBHOOK_URL` | Dónde avisa la app a n8n (valor de `.env.example`) |
+| `N8N_EDITOR_BASE_URL` | URL pública/base de n8n usada por los flujos para construir enlaces (p. ej. confirmar solicitud) |
 | `SEED` | `1` carga datos de ejemplo al arrancar; `0` arranca vacía (migración) |
 | `EMAIL_TIENDA` | Buzón de la tienda: recibe los avisos a Marisa y es también el remitente de los correos |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" (por defecto `80`) |
@@ -474,6 +475,8 @@ To stop: `docker compose down`. To also delete the data: `docker compose down -v
 | `SEED` | `1` loads sample data on start; `0` starts empty (migration) |
 | `EMAIL_TIENDA` | Shop mailbox: receives the alerts to Marisa and is also the sender of the emails |
 | `UMBRAL_VENTA_GRANDE` | Amount in € from which a sale counts as "large" (default `80`) |
+| `WEBHOOK_TOKEN` | Token the app sends in `X-Webhook-Token` when notifying n8n (empty = no notifications) |
+| `N8N_EDITOR_BASE_URL` | Public/base URL of n8n used by workflows to build links (e.g. confirm request) |
 | `TELEGRAM_CHAT_ID_MARISA` | Telegram chat id of Marisa: the only chat served by `Asistente Marisa` (T-017) |
 
 Inside a workflow they are read with `{{ $env.NAME }}`.
