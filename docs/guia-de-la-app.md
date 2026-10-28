@@ -1,4 +1,4 @@
-# Guía de la app de la tienda
+﻿# Guía de la app de la tienda
 
 Este documento explica **cómo funciona la app de Paso Firme** para que sepáis qué os da, cómo habla con n8n y dónde mirar cuando algo no sale. El enunciado del proyecto (el problema, las reglas del negocio, los flujos y los niveles) está en el [README](../README.md).
 
@@ -278,6 +278,7 @@ La app usa **la Production URL** (es lo que trae el `.env`). Por eso, **si el fl
 - **Un fallo del aviso no rompe nada en la tienda.** Crear un apartado funciona igual aunque n8n esté caído. El aviso se manda **después** de responder a la dependienta, con un máximo de 5 segundos de espera.
 - Si `N8N_WEBHOOK_URL` está **vacía** en el `.env`, la app no envía ningún aviso.
 - Si `N8N_WEBHOOK_URL` está configurada pero falta `WEBHOOK_TOKEN`, la app registra una advertencia y omite el aviso. La operación de la tienda se completa igualmente.
+- Si `WEBHOOK_TOKEN` está configurado, la app envía la cabecera `X-Webhook-Token` con ese valor. n8n debe validar esa cabecera contra su propia variable `WEBHOOK_TOKEN`.
 - En Docker Compose, `WEBHOOK_TOKEN` es obligatoria. En desarrollo local, configura la variable en el entorno de la aplicación y usa el mismo secreto en n8n. No lo escribas en el código ni lo subas al repositorio.
 
 ### Cómo ver qué está enviando la app

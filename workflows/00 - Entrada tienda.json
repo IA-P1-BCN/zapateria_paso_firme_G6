@@ -416,7 +416,8 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "errorWorkflow": "HHKPnBEBF9SObOSU"
   },
   "versionId": "4ba7d48b-e2a5-4dca-a81f-c2eafd9d93c8",
   "meta": {

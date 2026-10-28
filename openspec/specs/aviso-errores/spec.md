@@ -1,7 +1,7 @@
 # aviso-errores Specification
 
 ## Purpose
-TBD - created by archiving change t-007-flujo-08-error-workflow. Update Purpose after archive.
+Flujo de error (08) que avisa a la tienda del flujo, nodo y error cuando falla cualquier automatizacion.
 
 ## Requirements
 

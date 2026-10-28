@@ -1,7 +1,7 @@
 # confirmacion-apartado Specification
 
 ## Purpose
-TBD - created by archiving change t-004-flujo-01-confirmacion-apartado. Update Purpose after archive.
+Confirmacion al cliente cuando se crea un apartado: resumen de lo apartado, pagado, pendiente y fecha limite.
 
 ## Requirements
 

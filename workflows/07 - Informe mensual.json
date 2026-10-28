@@ -19,7 +19,7 @@
         0
       ],
       "id": "e9751d5d-5144-4021-83bc-dbd4eb31c5a4",
-      "name": "Schedule Trigger"
+      "name": "Cada mes día 1"
     },
     {
       "parameters": {
@@ -260,17 +260,6 @@
   ],
   "pinData": {},
   "connections": {
-    "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Calcular mes anterior",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Calcular mes anterior": {
       "main": [
         [
@@ -331,6 +320,17 @@
         [
           {
             "node": "Enviar informe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada mes día 1": {
+      "main": [
+        [
+          {
+            "node": "Calcular mes anterior",
             "type": "main",
             "index": 0
           }

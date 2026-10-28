@@ -1,7 +1,7 @@
 # asistente-marisa Specification
 
 ## Purpose
-TBD - created by archiving change t-017-asistente-telegram-marisa. Update Purpose after archive.
+Asistente de Telegram para Marisa: responde en lenguaje natural a preguntas sobre recaudación, apartados por vencer y consultas de apartados, usando solo datos de la API de la tienda. Solo lectura.
 
 ## Requirements
 

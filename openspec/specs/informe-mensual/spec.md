@@ -1,7 +1,7 @@
 # informe-mensual Specification
 
 ## Purpose
-TBD - created by archiving change t-011-flujo-07-informe-mensual. Update Purpose after archive.
+Informe mensual a Marisa con recaudacion, pendiente de cobro y apartados nuevos, liquidados y vencidos.
 
 ## Requirements
 

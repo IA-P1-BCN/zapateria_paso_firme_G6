@@ -71,9 +71,11 @@ Para pararlo: `docker compose down`. Para borrar también los datos: `docker com
 |---|---|
 | `API_KEY` | Clave que la app exige en la cabecera `X-API-Key` |
 | `N8N_WEBHOOK_URL` | Dónde avisa la app a n8n (valor de `.env.example`) |
+| `N8N_EDITOR_BASE_URL` | URL pública/base de n8n usada por los flujos para construir enlaces (p. ej. confirmar solicitud) |
 | `SEED` | `1` carga datos de ejemplo al arrancar; `0` arranca vacía (migración) |
 | `EMAIL_TIENDA` | Buzón de la tienda: recibe los avisos a Marisa y es también el remitente de los correos |
 | `UMBRAL_VENTA_GRANDE` | Importe en € a partir del cual una venta es "grande" (por defecto `80`) |
+| `WEBHOOK_TOKEN` | Token que la app envía en `X-Webhook-Token` al avisar a n8n (vacío = no envía avisos) |
 | `TELEGRAM_CHAT_ID_MARISA` | Identificador del chat de Telegram de Marisa: el único que atiende `Asistente Marisa` (T-017) |
 
 Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
@@ -85,6 +87,7 @@ Dentro de un flujo se leen con `{{ $env.NOMBRE }}`.
 | `Correo entrada` | IMAP | La misma cuenta, para leer los avisos del banco |
 | `Modelo IA` | Groq | Clave personal de https://console.groq.com |
 | `Telegram Marisa` | Telegram | Token del bot de Marisa (se crea con BotFather; solo en la credencial, nunca en el repo) |
+| `Telegram Clientes` | Telegram | Token del bot de clientes (se crea con BotFather; solo en la credencial, nunca en el repositorio) |
 | `Acceso Marisa` | Basic Auth | Usuario y contraseña del formulario de confirmación de solicitudes (T-018) |
 
 Los flujos solo guardan el **nombre** de la credencial. El `.env` y los valores de las credenciales no se suben nunca al repositorio.
@@ -391,6 +394,18 @@ Un cliente puede pedir un apartado desde casa con un formulario. El apartado **n
 | 4 confirmaciones: nº 1 (89,90 €, 10 € por Bizum) dos veces, nº 2 con 3 € de abono, nº 99 | Se crea el **apartado #8** de Carmen y la nº 1 queda `confirmada`; la repetida, la de 3 € (mínimo 5 €) y la nº 99 (no existe) no crean nada. El flujo 01 manda la confirmación a Carmen |
 | Las mismas solicitudes y confirmaciones otra vez | No se guarda ninguna solicitud ni se crea ningún apartado: «ya está confirmada (apartado #8)» |
 
+### Panel movil para Marisa (T-021)
+
+Panel de solo lectura para Marisa, servido como pagina HTML desde n8n (/webhook/panel-marisa), protegido con Basic Auth (credencial Acceso Marisa). Muestra el total cobrado hoy (ventas + abonos, con desglose por forma de pago), los apartados que vencen en los proximos 7 dias y el total pendiente de cobro. No modifica la app ni el frontend.
+
+Para ponerlo en marcha:
+
+- Importa workflows/21 - Panel movil para Marisa.json y publica el flujo.
+- Crea/selecciona las credenciales Tienda API y Acceso Marisa.
+- Abre https://<tu-dominio>/webhook/panel-marisa (o http://n8n:5678/webhook/panel-marisa desde dentro) e inicia sesion.
+
+---
+
 ### Estructura del repositorio
 
 | Ruta | Qué hay |
@@ -491,6 +506,8 @@ To stop: `docker compose down`. To also delete the data: `docker compose down -v
 | `SEED` | `1` loads sample data on start; `0` starts empty (migration) |
 | `EMAIL_TIENDA` | Shop mailbox: receives the alerts to Marisa and is also the sender of the emails |
 | `UMBRAL_VENTA_GRANDE` | Amount in € from which a sale counts as "large" (default `80`) |
+| `WEBHOOK_TOKEN` | Token the app sends in `X-Webhook-Token` when notifying n8n (empty = no notifications) |
+| `N8N_EDITOR_BASE_URL` | Public/base URL of n8n used by workflows to build links (e.g. confirm request) |
 | `TELEGRAM_CHAT_ID_MARISA` | Telegram chat id of Marisa: the only chat served by `Asistente Marisa` (T-017) |
 
 Inside a workflow they are read with `{{ $env.NAME }}`.
@@ -502,6 +519,7 @@ Inside a workflow they are read with `{{ $env.NAME }}`.
 | `Correo entrada` | IMAP | Same account, to read bank notifications |
 | `Modelo IA` | Groq | Personal key from https://console.groq.com |
 | `Telegram Marisa` | Telegram | Token of Marisa's bot (created with BotFather; only in the credential, never in the repo) |
+| `Telegram Clientes` | Telegram | Token of the customers' bot (created with BotFather; only in the credential, never in the repository) |
 | `Acceso Marisa` | Basic Auth | Username and password for the request confirmation form (T-018) |
 
 Workflows only store the credential **name**. The `.env` file and credential values are never committed.
@@ -807,6 +825,18 @@ A customer can request a layaway from home through a form. The layaway **is not 
 | 4 requests: Carmen (with email), Pedro (no email), Ana without a model, Carmen repeated | Requests 1 (Carmen) and 2 (Pedro) are saved as pending; Ana's and the repeated one are not. 5 alerts: 4 to Marisa and the acknowledgement to Carmen |
 | 4 confirmations: no. 1 (€89.90, €10 by Bizum) twice, no. 2 with a €3 down payment, no. 99 | **Layaway #8** is created for Carmen and no. 1 becomes `confirmada`; the repeated one, the €3 one (minimum €5) and no. 99 (does not exist) create nothing. Workflow 01 sends Carmen the confirmation |
 | The same requests and confirmations again | No request is saved and no layaway is created: "ya está confirmada (apartado #8)" |
+
+### Mobile panel for Marisa (T-021)
+
+Read-only panel for Marisa, served as an HTML page from n8n (/webhook/panel-marisa), protected with Basic Auth (credential Acceso Marisa). Shows the total collected today (sales + layaway payments, by payment method), layaways expiring in the next 7 days and the total outstanding. Does not modify the app or frontend.
+
+To run it:
+
+- Import workflows/21 - Panel movil para Marisa.json and publish the workflow.
+- Create/select the Tienda API and Acceso Marisa credentials.
+- Open https://<your-domain>/webhook/panel-marisa (or http://n8n:5678/webhook/panel-marisa from inside) and sign in.
+
+---
 
 ### Repository layout
 
