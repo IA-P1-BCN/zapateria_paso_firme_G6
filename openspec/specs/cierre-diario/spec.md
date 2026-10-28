@@ -1,7 +1,7 @@
 # cierre-diario Specification
 
 ## Purpose
-TBD - created by archiving change t-006-flujo-05-cierre-diario. Update Purpose after archive.
+Cierre de caja diario programado: suma ventas y abonos del dia por forma de pago, guarda el cierre y avisa a Marisa.
 
 ## Requirements
 

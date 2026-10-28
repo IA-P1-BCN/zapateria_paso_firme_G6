@@ -1,7 +1,7 @@
 # recordatorios-vencimientos Specification
 
 ## Purpose
-TBD - created by archiving change t-009-flujo-06-recordatorios-vencimientos. Update Purpose after archive.
+Recordatorios a clientes (7 y 1 dia) y vencimiento por API de apartados fuera de plazo con generacion de vale.
 
 ## Requirements
 

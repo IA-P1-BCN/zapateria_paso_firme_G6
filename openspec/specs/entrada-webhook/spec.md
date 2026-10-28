@@ -1,7 +1,7 @@
 # entrada-webhook Specification
 
 ## Purpose
-TBD - created by archiving change t-001-base-webhook-credenciales. Update Purpose after archive.
+Entrada unica de eventos de la app por POST /webhook/tienda con autenticacion por token y derivacion por evento.
 
 ## Requirements
 

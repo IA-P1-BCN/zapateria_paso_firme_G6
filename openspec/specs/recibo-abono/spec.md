@@ -1,7 +1,7 @@
 # recibo-abono Specification
 
 ## Purpose
-TBD - created by archiving change t-005-flujo-02-recibo-abono. Update Purpose after archive.
+Recibo de cada abono al cliente, con aviso de recogida cuando el apartado queda liquidado.
 
 ## Requirements
 
