@@ -10,7 +10,25 @@
 
 Paso Firme es una zapatería de barrio cuyo servicio estrella son los **apartados**: el cliente reserva unos zapatos con un abono inicial (mínimo 5 €) y los paga poco a poco en un plazo de 90 días. La tienda ya tiene una app (FastAPI + SQLite) donde se registran apartados, abonos y ventas.
 
-Este repositorio **no modifica la app**: construye con **n8n** todo lo que pasa a su alrededor (avisar a los clientes, registrar los pagos que llegan por Bizum o transferencia, cerrar la caja, recordar vencimientos, informar a Marisa, la dueña). El enunciado completo del proyecto está en [ENUNCIADO.md](ENUNCIADO.md).
+Este repositorio **no modifica la app** (salvo su hoja de estilos, ver *Identidad visual*): construye con **n8n** todo lo que pasa a su alrededor (avisar a los clientes, registrar los pagos que llegan por Bizum o transferencia, cerrar la caja, recordar vencimientos, informar a Marisa, la dueña). El enunciado completo del proyecto está en [ENUNCIADO.md](ENUNCIADO.md).
+
+### Identidad visual (T-023)
+
+Todo lo que ven Marisa y sus clientes tiene el mismo aire de zapatería de barrio: papel kraft, cuero, costuras y etiquetas de precio. Se aplica a la web de la tienda (solo su hoja de estilos, `frontend/css/styles.css`), al panel de Marisa y a los formularios de apartado (opción *Custom Form Styling* del formulario de n8n).
+
+| Uso | Color |
+|---|---|
+| Fondo (papel kraft) | `#f3ebdd` |
+| Tarjetas (crema) | `#fffaf1` |
+| Texto | `#2a1c13` |
+| Texto secundario | `#6a5444` |
+| Primario (cuero) | `#7b4a2a` |
+| Acento (verde botella) | `#1f4d3a` |
+| Avisos (burdeos) | `#8b1d2c` |
+| Franja de cabecera | `#3a2418`, costura `#a77b55` |
+| Bordes y costuras | `#dccab0` / `#c9b08c` |
+
+Títulos en **Fraunces** (serif de rótulo) y texto en **Nunito Sans**, de Google Fonts. Todas las parejas de texto y fondo tienen un contraste de al menos 4,5:1, y la web mantiene el modo oscuro. Si alguien quiere dar este aspecto a los correos de sus flujos, basta con usar estos colores en estilos en línea.
 
 ### Flujos
 
@@ -510,7 +528,25 @@ En cada PR que toca `workflows/`, la acción [`Validar flujos`](.github/workflow
 
 Paso Firme is a neighbourhood shoe shop whose key service is **layaway** (*apartado*): the customer reserves a pair of shoes with a down payment (at least €5) and pays the rest in instalments within 90 days. The shop already has an app (FastAPI + SQLite) to record layaways, payments and sales.
 
-This repository **does not change the app**. It uses **n8n** to automate everything around it: notifying customers, recording payments that arrive by Bizum or bank transfer, closing the till, reminding customers of deadlines and reporting to Marisa, the owner. The full project brief (in Spanish) is in [ENUNCIADO.md](ENUNCIADO.md).
+This repository **does not change the app** (except its stylesheet, see *Visual identity*). It uses **n8n** to automate everything around it: notifying customers, recording payments that arrive by Bizum or bank transfer, closing the till, reminding customers of deadlines and reporting to Marisa, the owner. The full project brief (in Spanish) is in [ENUNCIADO.md](ENUNCIADO.md).
+
+### Visual identity (T-023)
+
+Everything Marisa and her customers see shares the same neighbourhood shoe shop look: kraft paper, leather, stitching and price tags. It is applied to the shop's web app (only its stylesheet, `frontend/css/styles.css`), Marisa's panel and the layaway forms (the n8n form's *Custom Form Styling* option).
+
+| Use | Colour |
+|---|---|
+| Background (kraft paper) | `#f3ebdd` |
+| Cards (cream) | `#fffaf1` |
+| Text | `#2a1c13` |
+| Secondary text | `#6a5444` |
+| Primary (leather) | `#7b4a2a` |
+| Accent (bottle green) | `#1f4d3a` |
+| Alerts (burgundy) | `#8b1d2c` |
+| Header band | `#3a2418`, stitching `#a77b55` |
+| Borders and stitching | `#dccab0` / `#c9b08c` |
+
+Headings in **Fraunces** (a shop-sign serif) and body text in **Nunito Sans**, from Google Fonts. Every text and background pair has a contrast of at least 4.5:1, and the web app keeps its dark mode. To give the emails of other workflows this look, use these colours as inline styles.
 
 ### Workflows
 
