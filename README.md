@@ -422,6 +422,74 @@ Para ponerlo en marcha:
 - Crea/selecciona las credenciales Tienda API y Acceso Marisa.
 - Abre https://<tu-dominio>/webhook/panel-marisa (o http://n8n:5678/webhook/panel-marisa desde dentro) e inicia sesion.
 
+### Despliegue en la nube (T-022)
+
+Sin crédito de pago, la **tienda** se publica en **Render** (plan gratuito). El despliegue de **n8n** con su base de datos en **Neon** está preparado pero **pendiente**: el equipo aún decide si usa Neon. Todo está descrito en [`render.yaml`](render.yaml) (el bloque de n8n está comentado). Cómo se hizo, paso a paso y para novatos: [docs/despliegue-nube.md](docs/despliegue-nube.md).
+
+> ⏳ **Aviso: la primera carga tarda.** En el plan gratuito, Render duerme cada servicio tras 15 minutos sin visitas. La primera petición después lo despierta y tarda en contestar: **unos 30-60 s la tienda** (y hasta 1-2 min n8n, cuando esté). No es un error: hay que esperar y recargar. No se usa nada para mantenerlo despierto (ni pings, ni monitores externos, ni tareas programadas activas), porque agotaría las horas gratuitas del mes.
+
+**Por qué no Vercel:** Vercel ejecuta cada petición en una función que se apaga al terminar y solo deja escribir en una carpeta temporal. Un apartado creado en una petición no existiría en la siguiente, así que la tienda (SQLite) no funcionaría, y n8n necesita un proceso que siga vivo.
+
+#### Tienda en Render
+
+**Demo:** https://paso-firme-tienda.onrender.com (API en `/docs`).
+
+Es una **tienda de demostración**: Render gratis no tiene disco permanente, así que al dormirse o reiniciarse vuelve a los datos de ejemplo (`SEED=1`). Sirve para enseñarla, no para trabajar con datos reales.
+
+1. Entra en [render.com](https://render.com) con GitHub (plan gratuito).
+2. **New + → Web Service**. Si el repo de la organización no aparece, elige **Public Git Repository** y pega la URL del repo (es público). Cuando `render.yaml` esté en `dev`, también vale **New + → Blueprint**.
+3. Configuración: nombre `paso-firme-tienda`, lenguaje **Docker**, rama `dev`, región **Frankfurt**, `Dockerfile Path` `./Dockerfile`, tipo de instancia **Free** y, en *Advanced*, `Health Check Path` `/`.
+4. Variables de entorno:
+
+   | Variable | Valor |
+   |---|---|
+   | `API_KEY` | una clave larga **nueva, solo para esta demo** |
+   | `SEED` | `1` |
+   | `TZ` | `Europe/Madrid` |
+   | `PORT` | `8000` |
+
+   Sin `N8N_WEBHOOK_URL` la tienda funciona igual y no intenta avisar a n8n.
+5. **Deploy Web Service**. Cuando ponga *Live*: `https://<servicio>.onrender.com` (la tienda) y `/docs` (la API). Render sirve la URL solo por **HTTPS**.
+
+La app pasa la `API_KEY` al navegador (`/config.js`) para que funcione la web: cualquiera que abra la página puede verla. Por eso es una clave aparte y los datos son ficticios.
+
+#### n8n en la nube (pendiente)
+
+Preparado para quien lo continúe: el bloque `paso-firme-n8n` de `render.yaml` (comentado) usa la imagen `n8nio/n8n:2.44.4` con flujos, credenciales y ejecuciones en **Neon** (Postgres que escala a cero), así que no se pierden aunque Render duerma. Se probó en local que n8n 2.44.4 arranca contra Neon y crea sus tablas.
+
+1. **Neon:** proyecto en Frankfurt con una base `n8n` y un usuario `n8n`. Copia el *host* de la conexión **directa** (sin `-pooler`, porque n8n hace migraciones al arrancar), el usuario y la contraseña.
+2. Descomenta el bloque de n8n en `render.yaml` (y `N8N_WEBHOOK_URL` y `WEBHOOK_TOKEN` en la tienda) y aplica el Blueprint.
+3. Rellena en Render los secretos (nunca en el repo):
+
+   | Servicio | Variable | Valor |
+   |---|---|---|
+   | tienda | `N8N_WEBHOOK_URL` | `https://<servicio-n8n>.onrender.com/webhook/tienda` |
+   | tienda y n8n | `WEBHOOK_TOKEN` | el mismo valor en los dos (T-020) |
+   | n8n | `N8N_HOST` | `<servicio-n8n>.onrender.com` |
+   | n8n | `WEBHOOK_URL`, `N8N_EDITOR_BASE_URL` | `https://<servicio-n8n>.onrender.com/` |
+   | n8n | `DB_POSTGRESDB_HOST`, `_DATABASE`, `_USER`, `_PASSWORD` | los de Neon |
+   | n8n | `EMAIL_TIENDA` | el correo de la tienda |
+   | n8n | `TELEGRAM_CHAT_ID_MARISA` | el chat de Telegram de Marisa |
+
+   `N8N_ENCRYPTION_KEY` la genera Render. **Guárdala en un gestor de contraseñas**: sin ella no se pueden leer las credenciales de una copia de la base.
+4. Abre la URL de n8n (espera a que despierte), crea la cuenta de propietaria, crea las credenciales con **los mismos nombres** que en local (la de la tienda apunta a `https://<servicio-tienda>.onrender.com`) e importa los JSON de `workflows/`. En cada nodo *Execute Workflow* vuelve a elegir el sub-workflow.
+5. Publica los sub-workflows y los flujos que responden a personas (webhook `00`, formularios, panel, Telegram). Los programados (`05`, `06`, `07`, `Entrada CSV del datáfono`) y el de correo IMAP (`03`) se quedan **sin publicar** salvo que Marisa lo pida: con el servicio dormido no se ejecutarían y, despiertos, gastarían horas.
+
+Limitación conocida: si n8n está dormido, el primer aviso de la tienda **se pierde** (la tienda espera 5 s y n8n tarda más en despertar; queda en su log como «No se pudo avisar a n8n»). Antes de una demo, abre primero n8n.
+
+**Copias de seguridad de n8n**, sin tareas programadas: los flujos están versionados en `workflows/`; Neon guarda 6 horas de historial para restaurar la base a un momento (*Branches* → *Restore*), y se puede sacar una copia completa bajo demanda:
+
+```bash
+docker run --rm postgres:17 pg_dump "<cadena de conexión de Neon>" > copia-n8n.sql      # sacar copia
+docker run --rm -i postgres:17 psql "<cadena de una base vacía>" < copia-n8n.sql          # restaurar
+```
+
+La copia no va al repo (lleva datos y credenciales cifradas) y para leer las credenciales hace falta la misma `N8N_ENCRYPTION_KEY`. La tienda no se copia: sus datos de demostración se regeneran solos.
+
+#### CI
+
+En cada PR que toca `workflows/`, la acción [`Validar flujos`](.github/workflows/validar-flujos.yml) comprueba que los JSON son exports válidos de n8n y que no llevan claves (Groq, tokens de Telegram, contraseñas escritas en un nodo, credenciales con datos, URL con usuario y contraseña). Si encuentra algo, la PR falla y marca el fichero. También avisa, sin fallar, de flujos exportados publicados o sin `08 - Error Workflow`. No llama a la tienda ni a n8n, así que no despierta nada. En local: `python .github/scripts/validar_flujos.py workflows`.
+
 ---
 
 ### Estructura del repositorio
@@ -871,6 +939,74 @@ To run it:
 - Import workflows/21 - Panel movil para Marisa.json and publish the workflow.
 - Create/select the Tienda API and Acceso Marisa credentials.
 - Open https://<your-domain>/webhook/panel-marisa (or http://n8n:5678/webhook/panel-marisa from inside) and sign in.
+
+### Cloud deployment (T-022)
+
+With no paid credit, the **shop** is published on **Render** (free plan). Deploying **n8n** with its database on **Neon** is prepared but **pending**: the team is still deciding whether to use Neon. Everything is described in [`render.yaml`](render.yaml) (the n8n block is commented out). How it was done, step by step for beginners (in Spanish): [docs/despliegue-nube.md](docs/despliegue-nube.md).
+
+> ⏳ **Warning: the first load is slow.** On the free plan, Render puts each service to sleep after 15 minutes without traffic. The next request wakes it up and takes a while to answer: **about 30-60 s for the shop** (and up to 1-2 min for n8n, once deployed). It is not an error: wait and reload. Nothing is used to keep it awake (no pings, external monitors or active scheduled jobs), as that would use up the month's free hours.
+
+**Why not Vercel:** Vercel runs each request in a function that stops when it finishes and only allows writing to a temporary folder. A layaway created in one request would not exist in the next, so the shop (SQLite) would not work, and n8n needs a long-running process.
+
+#### Shop on Render
+
+**Demo:** https://paso-firme-tienda.onrender.com (API at `/docs`).
+
+It is a **demo shop**: free Render has no persistent disk, so when it sleeps or restarts it goes back to the sample data (`SEED=1`). It is for showing the app, not for real data.
+
+1. Sign in to [render.com](https://render.com) with GitHub (free plan).
+2. **New + → Web Service**. If the organisation's repo is not listed, choose **Public Git Repository** and paste the repo URL (it is public). Once `render.yaml` is on `dev`, **New + → Blueprint** also works.
+3. Settings: name `paso-firme-tienda`, language **Docker**, branch `dev`, region **Frankfurt**, `Dockerfile Path` `./Dockerfile`, instance type **Free** and, under *Advanced*, `Health Check Path` `/`.
+4. Environment variables:
+
+   | Variable | Value |
+   |---|---|
+   | `API_KEY` | a long **new key, only for this demo** |
+   | `SEED` | `1` |
+   | `TZ` | `Europe/Madrid` |
+   | `PORT` | `8000` |
+
+   Without `N8N_WEBHOOK_URL` the shop works the same and does not try to notify n8n.
+5. **Deploy Web Service**. When it shows *Live*: `https://<service>.onrender.com` (the shop) and `/docs` (the API). Render serves the URL over **HTTPS** only.
+
+The app hands the `API_KEY` to the browser (`/config.js`) so the web page works: anyone who opens the page can see it. That is why it is a separate key and the data is fictitious.
+
+#### n8n in the cloud (pending)
+
+Ready for whoever continues: the `paso-firme-n8n` block in `render.yaml` (commented out) uses the `n8nio/n8n:2.44.4` image with workflows, credentials and executions in **Neon** (Postgres that scales to zero), so they are kept even when Render sleeps. It was tested locally that n8n 2.44.4 starts against Neon and creates its tables.
+
+1. **Neon:** a project in Frankfurt with an `n8n` database and an `n8n` user. Copy the **direct** connection host (without `-pooler`, because n8n runs migrations on startup), the user and the password.
+2. Uncomment the n8n block in `render.yaml` (and `N8N_WEBHOOK_URL` and `WEBHOOK_TOKEN` in the shop) and apply the Blueprint.
+3. Fill in the secrets in Render (never in the repo):
+
+   | Service | Variable | Value |
+   |---|---|---|
+   | shop | `N8N_WEBHOOK_URL` | `https://<n8n-service>.onrender.com/webhook/tienda` |
+   | shop and n8n | `WEBHOOK_TOKEN` | the same value in both (T-020) |
+   | n8n | `N8N_HOST` | `<n8n-service>.onrender.com` |
+   | n8n | `WEBHOOK_URL`, `N8N_EDITOR_BASE_URL` | `https://<n8n-service>.onrender.com/` |
+   | n8n | `DB_POSTGRESDB_HOST`, `_DATABASE`, `_USER`, `_PASSWORD` | the Neon ones |
+   | n8n | `EMAIL_TIENDA` | the shop's email |
+   | n8n | `TELEGRAM_CHAT_ID_MARISA` | Marisa's Telegram chat |
+
+   Render generates `N8N_ENCRYPTION_KEY`. **Keep it in a password manager**: without it the credentials in a database backup cannot be read.
+4. Open the n8n URL (wait for it to wake up), create the owner account, create the credentials with **the same names** as locally (the shop one points to `https://<shop-service>.onrender.com`) and import the JSON files from `workflows/`. In every *Execute Workflow* node pick the sub-workflow again.
+5. Publish the sub-workflows and the workflows that answer people (webhook `00`, forms, panel, Telegram). Scheduled ones (`05`, `06`, `07`, `Entrada CSV del datáfono`) and the IMAP email one (`03`) stay **unpublished** unless Marisa asks: they would not run while the service sleeps and, awake, they would use hours.
+
+Known limitation: if n8n is asleep, the shop's first notification **is lost** (the shop waits 5 s and n8n takes longer to wake up; it shows in the shop log as "No se pudo avisar a n8n"). Before a demo, open n8n first.
+
+**n8n backups**, with no scheduled jobs: workflows are versioned in `workflows/`; Neon keeps 6 hours of history to restore the database to a point in time (*Branches* → *Restore*), and a full backup can be taken on demand:
+
+```bash
+docker run --rm postgres:17 pg_dump "<Neon connection string>" > copia-n8n.sql      # back up
+docker run --rm -i postgres:17 psql "<empty database string>" < copia-n8n.sql        # restore
+```
+
+The backup does not go into the repo (it holds data and encrypted credentials) and reading the credentials needs the same `N8N_ENCRYPTION_KEY`. The shop is not backed up: its demo data regenerates itself.
+
+#### CI
+
+On every PR that touches `workflows/`, the [`Validar flujos`](.github/workflows/validar-flujos.yml) action checks that the JSON files are valid n8n exports and carry no keys (Groq, Telegram tokens, passwords written in a node, credentials with data, URLs with user and password). If it finds something, the PR fails and the file is flagged. It also warns, without failing, about workflows exported as published or without `08 - Error Workflow`. It does not call the shop or n8n, so it wakes nothing. Locally: `python .github/scripts/validar_flujos.py workflows`.
 
 ---
 

@@ -2,6 +2,8 @@
 
 Documento para poner en producción la automatización y cambiar los bots de Telegram a una URL pública sin perder la configuración. Complementa al [README](../README.md) y a [AGENTS.md](../AGENTS.md).
 
+> Cómo se publicó la tienda en Render y qué quedó preparado para n8n con Neon (T-022), explicado para novatos: [despliegue-nube.md](despliegue-nube.md).
+
 ## 1. Servicios y puertos
 
 | Servicio | Local (desarrollo) | Producción (pública) | Interno (entre contenedores) |

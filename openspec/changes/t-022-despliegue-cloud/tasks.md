@@ -1,5 +1,5 @@
 ## 1. Preparación
-- [ ] 1.1 Elegir proveedor y dominio
+- [x] 1.1 Elegir proveedor y dominio
 
 ## 2. Despliegue
 - [ ] 2.1 Docker Compose en el servidor con HTTPS
@@ -7,10 +7,10 @@
 - [ ] 2.3 Copias de seguridad
 
 ## 3. CI
-- [ ] 3.1 Acción de GitHub que valida los JSON y busca claves
+- [x] 3.1 Acción de GitHub que valida los JSON y busca claves
 
 ## 4. Entrega
-- [ ] 4.1 Anotar en la sección propia de `docs/ai-log.md`
+- [x] 4.1 Anotar en la sección propia de `docs/ai-log.md`
 
 ## 5. Cierre del change (obligatorio al terminar)
 - [ ] 5.1 Validar: `openspec validate t-022-despliegue-cloud --strict`

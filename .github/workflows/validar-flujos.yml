@@ -1,0 +1,25 @@
+# T-022: en cada PR comprueba que los flujos exportados son JSON válidos y no llevan claves.
+# No llama a la app ni a n8n: no despierta ningún servicio desplegado.
+name: Validar flujos
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths: ["workflows/**", ".github/scripts/validar_flujos.py", ".github/workflows/validar-flujos.yml"]
+  push:
+    branches: [dev]
+    paths: ["workflows/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validar los JSON de workflows/
+        run: python .github/scripts/validar_flujos.py workflows
