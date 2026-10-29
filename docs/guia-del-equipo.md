@@ -140,3 +140,48 @@ El `Dockerfile` de la tienda **no se ha tocado**: la app no se modifica.
 - Forma de pago de las transferencias (la app solo admite `efectivo`, `tarjeta` y `bizum`).
 - Dónde guardar el histórico de cierres diarios (T-006).
 - Horas de los flujos programados: cierre 22:00, recordatorios 09:00, informe el día 1 a las 08:00.
+
+## 14. La API key de la tienda, explicada fácil
+
+### Qué es
+La tienda tiene una **API**: una puerta por la que otros programas le piden datos o le dan órdenes («dame los apartados», «registra este abono»). La **API key** es la contraseña de esa puerta. Cada petición a `/api/...` tiene que llevarla en la cabecera `X-API-Key`; si no coincide con la de la tienda, o falta, la tienda contesta **401: «Falta la cabecera X-API-Key o no es válida»**.
+
+### Quién la usa
+- **La web de la tienda**: la propia página de apartados usa la API por dentro.
+- **n8n**: todos los flujos que consultan o modifican la tienda, a través de la credencial **`Tienda API`** (*Header Auth*).
+
+### Dónde vive
+
+| Sitio | Para qué tienda | Quién la pone |
+|---|---|---|
+| `.env` de tu ordenador (`API_KEY=...`) | Tu tienda local | Tú: te inventas la que quieras |
+| Panel de Render (variable `API_KEY`) | La tienda en la nube | Quien hizo el despliegue |
+| Credencial `Tienda API` en n8n | La tienda a la que se conecta ese n8n | Quien usa ese n8n |
+
+**Regla de oro:** la clave de la credencial de n8n tiene que ser **la misma** que la de la tienda a la que se conecta. Tu n8n local lleva la de tu `.env`; un n8n en la nube llevaría la de Render.
+
+### ¿Tengo que pedirle la clave a alguien?
+**No.** Cada persona tiene su propia tienda local, así que cada uno inventa la suya, y quien despliega en Render inventa una nueva. Nadie necesita la clave de otro. Para inventar una:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Ojo: en esta app la clave no es del todo secreta
+Para que la web funcione, la app le pasa la clave al navegador (`/config.js`): cualquiera que abra la tienda y mire las herramientas del navegador (F12) puede verla. Es una decisión de la app y no se toca. Por eso la clave de la nube es **solo para la demo**, los datos son **ficticios** y **nunca** se reutiliza una clave que se use para otra cosa.
+
+### Lo que NO se hace
+- Subir el `.env` a GitHub (está en `.gitignore`).
+- Escribir la clave dentro de un nodo o de un JSON de `workflows/`: va siempre en la credencial `Tienda API` (la CI rechaza los flujos con claves).
+- Pegarla en el chat, en una issue o en una PR.
+- Si se filtra: se cambia en Render (o en tu `.env`) y en la credencial de n8n, y la vieja deja de servir.
+
+### No confundirla con otras claves
+- **`API_KEY`**: n8n → tienda. n8n la usa para entrar en la tienda.
+- **`WEBHOOK_TOKEN`** (T-020): tienda → n8n, el sentido contrario. La tienda la manda en sus avisos para que n8n sepa que vienen de verdad de la tienda.
+- **`N8N_API_KEY`** (sección 9): la de la API de tu n8n, para que Claude Code trabaje con él. No tiene nada que ver con la tienda.
+- **Clave de Groq**: la del modelo de IA. Tampoco tiene que ver con la tienda.
+
+### Problemas típicos
+- **401 en un nodo de n8n**: la clave de la credencial no coincide con la de la tienda. Revisa el `.env` o Render.
+- **n8n no encuentra la tienda en local**: dentro de n8n la dirección es `http://tienda:8000`, no `localhost`.
